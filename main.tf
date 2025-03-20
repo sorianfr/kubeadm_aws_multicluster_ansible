@@ -262,7 +262,36 @@ module "kubernetes_clusters" {
 resource "local_file" "ansible_inventory" {
   filename = "${path.module}/inventory.ini"
   content  = templatefile("${path.module}/ansible_inventory.tpl", {
-    cluster_details = local.cluster_details
+    controlplane_hosts = join("\n", [
+      for cluster_name, cluster in local.cluster_details :
+      "${cluster.control_plane.hostname} ansible_host=${cluster.control_plane.ip} ansible_user=ubuntu"
+    ])
+
+    worker_hosts = join("\n", flatten([
+      for cluster_name, cluster in local.cluster_details : [
+        for worker in cluster.workers : 
+        "${worker.hostname} ansible_host=${worker.ip} ansible_user=ubuntu"
+      ]
+    ]))
+
+    controlplane_names = join("\n", [
+      for cluster_name, cluster in local.cluster_details :
+      "${cluster.control_plane.hostname}"
+    ])
+
+    worker_names = join("\n", flatten([
+      for cluster_name, cluster in local.cluster_details : [
+        for worker in cluster.workers : worker.hostname
+      ]
+    ]))
+
+    cluster_groups = join("\n\n", [
+      for cluster_name, cluster in local.cluster_details : <<EOT
+[${cluster_name}]
+${cluster.control_plane.hostname}
+${join("\n", [for worker in cluster.workers : worker.hostname])}
+EOT
+    ])
   })
 }
 
