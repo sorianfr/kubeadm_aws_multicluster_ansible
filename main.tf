@@ -343,3 +343,13 @@ EOT
 }
 
 
+resource "null_resource" "copy_ansible_files_to_bastion" {
+  provisioner "local-exec" {
+    command = <<EOT
+      ssh -i my_k8s_key.pem -o StrictHostKeyChecking=no ubuntu@${var.bastion_public_dns} "mkdir -p ~/ansible"
+      scp -i my_k8s_key.pem -o StrictHostKeyChecking=no -r ansible ubuntu@${var.bastion_public_dns}:~/ansible"
+    EOT
+  }
+  
+  depends_on = [aws_instance.bastion]
+}
