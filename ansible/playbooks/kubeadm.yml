@@ -1,0 +1,40 @@
+- name: Initialize Kubernetes Control Plane
+  hosts: clusters
+  become: yes
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: Ensure /etc/kubernetes directory exists
+      file:
+        path: /etc/kubernetes
+        state: directory
+        mode: 0755
+
+    - name: Copy kubeadm configuration template
+      template:
+        src: ../templates/kubeadm-config.yaml.j2
+        dest: /etc/kubernetes/kubeadm-config.yaml
+        mode: 0644
+
+    - name: Initialize kubeadm
+      command: kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory for ubuntu user
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: 0755
+
+    - name: Copy kubeconfig to ubuntu user
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: 0644
+
