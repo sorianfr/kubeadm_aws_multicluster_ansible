@@ -152,7 +152,31 @@ resource "aws_instance" "bastion" {
   tags = {
     Name = "shared_bastion"
   }
+
+  provisioner "remote-exec" {
+      inline = [
+        "sudo apt update -y",
+        "sudo apt install -y curl wget unzip jq",
+        "sudo apt install -y ansible", # Install Ansible
+        "curl -LO https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl",
+        "chmod +x kubectl",
+        "sudo mv kubectl /usr/local/bin/",
+        "kubectl version --client" # Verify kubectl installation
+      ]
+    }
+
+  connection {
+      type        = "ssh"
+      user        = "ubuntu"
+      private_key = file("~/.ssh/my_k8s_key.pem")
+      host        = self.public_ip
+    }
+
 }
+
+
+
+
 
 # Shared Bastion Host Security Group
 resource "aws_security_group" "bastion_sg" {
