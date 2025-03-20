@@ -264,7 +264,7 @@ resource "local_file" "ansible_inventory" {
   content  = templatefile("${path.module}/ansible_inventory.tpl", {
     controlplane_hosts = join("\n", [
       for cluster_name, cluster in local.cluster_details :
-      "${cluster.control_plane.hostname} ansible_host=${cluster.control_plane.ip} ansible_user=ubuntu"
+      "${cluster.control_plane.hostname} ansible_host=${cluster.control_plane.ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/my_k8s_key.pem"
     ])
 
     worker_hosts = join("\n", flatten([
