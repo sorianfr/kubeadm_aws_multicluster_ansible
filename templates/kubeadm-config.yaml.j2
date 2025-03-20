@@ -1,0 +1,17 @@
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: ClusterConfiguration
+metadata:
+  name: "{{ inventory_hostname }}"
+networking:
+  podSubnet: "{{ kubernetes_clusters[inventory_hostname].pod_cidr }}"
+  serviceSubnet: "{{ kubernetes_clusters[inventory_hostname].service_cidr }}"
+  dnsDomain: "{{ kubernetes_clusters[inventory_hostname].dns_domain }}"
+---
+apiVersion: kubeadm.k8s.io/v1beta3
+kind: InitConfiguration
+localAPIEndpoint:
+  advertiseAddress: "{{ kubernetes_clusters[inventory_hostname].control_plane }}"
+  bindPort: 6443
+nodeRegistration:
+  kubeletExtraArgs:
+    node-ip: "{{ kubernetes_clusters[inventory_hostname].control_plane }}"

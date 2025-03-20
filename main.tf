@@ -168,9 +168,11 @@ resource "aws_instance" "bastion" {
   connection {
       type        = "ssh"
       user        = "ubuntu"
-      private_key = file("~/.ssh/my_k8s_key.pem")
+      private_key = tls_private_key.k8s_key_pair.private_key_pem
       host        = self.public_ip
     }
+  
+  depends_on = [local_file.save_private_key]
 
 }
 
@@ -316,25 +318,28 @@ ${cluster.control_plane.hostname}
 ${join("\n", [for worker in cluster.workers : worker.hostname])}
 EOT
     ])
+
+    clusters_group = join("\n", [
+      for cluster_name, cluster in local.cluster_details : "${cluster_name}"
+    ])
+
   })
 }
 
 resource "local_file" "ansible_vars" {
   filename = "${path.module}/ansible/vars.yml"
-  content  = yamlencode({
-    kubernetes_clusters = {
-      for cluster_name, cluster in local.cluster_details : cluster_name => {
-        pod_cidr      = cluster.pod_subnet
-        service_cidr  = cluster.service_cidr
-        control_plane = cluster.control_plane.ip
-        workers       = [for worker in cluster.workers : worker.ip]
-      }
-    }
-  })
+  content  = <<EOT
+kubernetes_clusters:
+%{ for cluster_name, cluster in local.cluster_details }
+  ${cluster_name}:
+    control_plane: "${cluster.control_plane.ip}"
+    pod_cidr: "${cluster.pod_subnet}"
+    service_cidr: "${cluster.service_cidr}"
+    dns_domain: "${cluster_name}.local"
+    workers:%{ for worker in cluster.workers }
+      - "${worker.ip}"%{ endfor }
+%{ endfor }
+EOT
 }
-
-
-
-
 
 
