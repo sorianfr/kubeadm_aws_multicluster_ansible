@@ -550,7 +550,7 @@
       depends_on = [null_resource.copy_files_to_bastion, aws_instance.controlplane]
     }
 
-    
+/*    
     resource "null_resource" "kubeadm_init" {
   provisioner "remote-exec" {
     inline = concat(
@@ -608,7 +608,8 @@
     null_resource.update_hosts
   ]
 }
-
+*/
+/*
     resource "null_resource" "apply_bgp_conf" {
       provisioner "remote-exec" {
         inline = [
@@ -634,7 +635,8 @@
         null_resource.copy_files_to_controlplane
       ]
     }
-
+*/
+/*
 resource "null_resource" "apply_bgp_peers" {
   provisioner "remote-exec" {
     inline = [
@@ -660,7 +662,9 @@ resource "null_resource" "apply_bgp_peers" {
     null_resource.apply_bgp_conf
   ]
 }
+*/
 
+/*
 resource "null_resource" "apply_caliconodestatus" {
   provisioner "remote-exec" {
     inline = [
@@ -683,7 +687,8 @@ resource "null_resource" "apply_caliconodestatus" {
     null_resource.apply_bgp_conf
   ]
 }
-
+*/
+/*
 resource "null_resource" "apply_ippools" {
   provisioner "remote-exec" {
     inline = [
@@ -706,3 +711,4 @@ resource "null_resource" "apply_ippools" {
     null_resource.apply_bgp_conf
   ]
 }
+*/

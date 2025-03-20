@@ -319,7 +319,19 @@ EOT
   })
 }
 
-
+resource "local_file" "ansible_vars" {
+  filename = "${path.module}/ansible/vars.yml"
+  content  = yamlencode({
+    kubernetes_clusters = {
+      for cluster_name, cluster in local.cluster_details : cluster_name => {
+        pod_cidr      = cluster.pod_subnet
+        service_cidr  = cluster.service_cidr
+        control_plane = cluster.control_plane.ip
+        workers       = [for worker in cluster.workers : worker.ip]
+      }
+    }
+  })
+}
 
 
 

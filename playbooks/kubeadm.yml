@@ -1,0 +1,43 @@
+- name: Initialize Kubernetes Control Plane
+  hosts: controlplanes
+  become: yes
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: Initialize kubeadm
+      command: >
+        kubeadm init --pod-network-cidr={{ kubernetes_clusters[inventory_hostname].pod_cidr }}
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Create .kube directory
+      file:
+        path: /home/ubuntu/.kube
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: 0755
+
+    - name: Copy kubeconfig for user
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /home/ubuntu/.kube/config
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: 0644
+
+- name: Join Worker Nodes to Cluster
+  hosts: workers
+  become: yes
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: Get Join Command from Control Plane
+      shell: kubeadm token create --print-join-command
+      register: join_command
+      delegate_to: "{{ kubernetes_clusters[inventory_hostname].control_plane }}"
+
+    - name: Join the Cluster
+      command: "{{ join_command.stdout }}"
+      when: join_command.stdout is defined
