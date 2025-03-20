@@ -259,6 +259,14 @@ module "kubernetes_clusters" {
 
 }
 
+resource "local_file" "ansible_inventory" {
+  filename = "${path.module}/inventory.ini"
+  content  = templatefile("${path.module}/ansible_inventory.tpl", {
+    cluster_details = local.cluster_details
+  })
+}
+
+
 
 
 
