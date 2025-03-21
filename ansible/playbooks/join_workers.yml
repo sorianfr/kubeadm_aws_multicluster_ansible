@@ -1,0 +1,36 @@
+- name: Get join commands from each cluster
+  hosts: controlplanes
+  gather_facts: no
+  become: yes
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: Create kubeadm join command
+      command: kubeadm token create --print-join-command
+      register: join_command_raw
+
+    - name: Set cluster-specific join command
+      set_fact:
+        join_command: "{{ join_command_raw.stdout }} --v=5"
+
+    - name: Save join command for workers
+      add_host:
+        name: "{{ item }}"
+        groups: join_targets
+        ansible_host: "{{ hostvars[item].ansible_host }}"
+        join_command: "{{ join_command }}"
+        ansible_user: ubuntu
+        ansible_ssh_private_key_file: "{{ hostvars[item].ansible_ssh_private_key_file }}"
+      loop: "{{ groups[inventory_hostname | regex_replace('controlplane', '')] | reject('equalto', inventory_hostname) | list }}"
+
+---
+
+- name: Join worker nodes to cluster
+  hosts: join_targets
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Run kubeadm join on worker
+      command: "{{ join_command }}"
+      args:
+        creates: /etc/kubernetes/kubelet.conf
