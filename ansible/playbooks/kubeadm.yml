@@ -1,5 +1,5 @@
 - name: Initialize Kubernetes Control Plane
-  hosts: clusters
+  hosts: controlplanes
   become: yes
   vars_files:
     - ../vars.yml

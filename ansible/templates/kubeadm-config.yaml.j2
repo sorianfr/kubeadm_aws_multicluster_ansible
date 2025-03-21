@@ -1,17 +1,18 @@
+{% set cluster_name = inventory_hostname | regex_replace('controlplane', '') %}
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
 metadata:
-  name: "{{ inventory_hostname }}"
+  name: "{{ cluster_name }}"
 networking:
-  podSubnet: "{{ kubernetes_clusters[inventory_hostname].pod_cidr }}"
-  serviceSubnet: "{{ kubernetes_clusters[inventory_hostname].service_cidr }}"
-  dnsDomain: "{{ kubernetes_clusters[inventory_hostname].dns_domain }}"
+  podSubnet: "{{ kubernetes_clusters[cluster_name].pod_cidr }}"
+  serviceSubnet: "{{ kubernetes_clusters[cluster_name].service_cidr }}"
+  dnsDomain: "{{ kubernetes_clusters[cluster_name].dns_domain }}"
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 localAPIEndpoint:
-  advertiseAddress: "{{ kubernetes_clusters[inventory_hostname].control_plane }}"
+  advertiseAddress: "{{ kubernetes_clusters[cluster_name].control_plane }}"
   bindPort: 6443
 nodeRegistration:
   kubeletExtraArgs:
-    node-ip: "{{ kubernetes_clusters[inventory_hostname].control_plane }}"
+    node-ip: "{{ kubernetes_clusters[cluster_name].control_plane }}"

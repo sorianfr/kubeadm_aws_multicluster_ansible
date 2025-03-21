@@ -3,7 +3,7 @@
 1. Clone this repository to your local machine:
 
    ```bash
-   git clone https://github.com/sorianfr/kubeadm_aws_multicluster.git
+   git clone https://github.com/sorianfr/kubeadm_aws_multicluster_ansible.git
 
 2. Download and Install Terraform
    ```bash
