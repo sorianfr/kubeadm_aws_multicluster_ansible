@@ -8,8 +8,8 @@ ${controlplane_names}
 [workers]
 ${worker_names}
 
-[clusters]
-${cluster_group}
+[clusters:children]
+${cluster_children}
 
 ${cluster_groups}
 

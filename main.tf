@@ -319,7 +319,7 @@ ${join("\n", [for worker in cluster.workers : worker.hostname])}
 EOT
     ])
 
-    cluster_group = join("\n", [
+    cluster_children = join("\n", [
       for cluster_name, cluster in local.cluster_details : "${cluster_name}"
     ])
 
@@ -346,8 +346,9 @@ EOT
 resource "null_resource" "copy_ansible_files_to_bastion" {
   provisioner "local-exec" {
     command = <<EOT
-      ssh -i my_k8s_key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion.public_dns} "mkdir -p ~/ansible"
-      scp -i my_k8s_key.pem -o StrictHostKeyChecking=no -r ansible ubuntu@${aws_instance.bastion.public_dns}:~/ansible
+      scp -i my_k8s_key.pem -o StrictHostKeyChecking=no -r ansible ubuntu@${aws_instance.bastion.public_dns}:~/
+      ssh -i my_k8s_key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion.public_dns} "chmod 600 ~/ansible/my_k8s_key.pem"
+
     EOT
   }
 
