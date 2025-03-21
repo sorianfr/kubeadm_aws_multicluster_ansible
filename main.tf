@@ -347,6 +347,7 @@ resource "null_resource" "copy_ansible_files_to_bastion" {
   provisioner "local-exec" {
     command = <<EOT
       scp -i my_k8s_key.pem -o StrictHostKeyChecking=no -r ansible ubuntu@${aws_instance.bastion.public_dns}:~/
+      scp -i my_k8s_key.pem -o StrictHostKeyChecking=no -r my_k8s_key.pem ubuntu@${aws_instance.bastion.public_dns}:~/ansible
       ssh -i my_k8s_key.pem -o StrictHostKeyChecking=no ubuntu@${aws_instance.bastion.public_dns} "chmod 600 ~/ansible/my_k8s_key.pem"
 
     EOT
