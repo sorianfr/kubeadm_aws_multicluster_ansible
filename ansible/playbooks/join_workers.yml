@@ -20,11 +20,8 @@
         ansible_host: "{{ hostvars[item].ansible_host }}"
         join_command: "{{ join_command }}"
         ansible_user: ubuntu
-        ansible_ssh_private_key_file: "{{ hostvars[item].ansible_ssh_private_key_file }}"
+        ansible_ssh_private_key_file: "~/ansible/my_k8s_key.pem"
       loop: "{{ groups[inventory_hostname | regex_replace('controlplane', '')] | reject('equalto', inventory_hostname) | list }}"
-
----
-
 - name: Join worker nodes to cluster
   hosts: join_targets
   become: yes
@@ -34,3 +31,4 @@
       command: "{{ join_command }}"
       args:
         creates: /etc/kubernetes/kubelet.conf
+

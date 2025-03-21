@@ -15,6 +15,17 @@
    ```bash
    terraform init
    terraform apply
+   ```
+
+5. SSH onto Bastion
+   ```bash
+   ssh -i my_k8s_key.pem ubuntu@<BASTION_PUBLIC_DNS>
+
+6. Run playbook
+   ```bash
+   cd ~/ansible
+   ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbooks/kubeadm.yml
+
 
 
 ## BGP Configuration
