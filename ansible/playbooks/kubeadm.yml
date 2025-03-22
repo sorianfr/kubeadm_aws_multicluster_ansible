@@ -37,4 +37,25 @@
         owner: ubuntu
         group: ubuntu
         mode: 0644
+    
+    - name: Extract cluster name (e.g. cluster1 from cluster1controlplane)
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane$', '') }}"
+
+    - name: Generate kubeadm join command
+      command: kubeadm token create --print-join-command
+      register: join_command_output
+
+    - name: Save join command in global dict by cluster name
+      set_fact:
+        join_commands: "{{ join_commands | default({}) | combine({ cluster_name: join_command_output.stdout }) }}"
+      delegate_to: localhost
+
+    - name: Write join command to file
+      copy:
+        content: "{{ cluster_name }}={{ join_command_output.stdout }}"
+        dest: "/tmp/join_command_{{ cluster_name }}.txt"
+      delegate_to: localhost
+
+
 

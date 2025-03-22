@@ -2,29 +2,39 @@
   hosts: workers
   become: yes
   gather_facts: no
+
   tasks:
-    - name: Find the cluster this worker belongs to
+    - name: Find control plane host from group
       set_fact:
-        cluster_group: >-
-          {{ groups['clusters'] | select('in', group_names) | list | first }}
+        controlplane_host: >-
+          {{ groups
+              | dict2items
+              | selectattr('value', 'contains', inventory_hostname)
+              | selectattr('key', 'match', '^cluster[0-9]+$')
+              | map(attribute='value')
+              | map('select', 'search', 'controlplane')
+              | map('first')
+              | list
+              | first }}
 
-    - name: Identify control plane of the cluster
+    - name: Extract cluster group name from control plane hostname
       set_fact:
-        controlplane_host: "{{ groups[cluster_group] | select('search', 'controlplane') | list | first }}"
+        cluster_group: "{{ controlplane_host | regex_replace('controlplane$', '') }}"
 
-    - name: Get the join command from the control plane
+    - name: Load join command file
+      slurp:
+        src: "/tmp/join_command_{{ cluster_group }}.txt"
+      register: join_file
+      delegate_to: localhost
+
+    - name: Set join command from file
       set_fact:
-        join_command: "{{ hostvars[controlplane_host].join_command }}"
+        join_command: "{{ (join_file.content | b64decode).split('=')[1] }}"
 
-    - name: Check if the node is already joined
+    - name: Check if node is already joined
       stat:
         path: /etc/kubernetes/kubelet.conf
       register: kubelet_conf
-
-    - name: Debug the join command
-      debug:
-        msg: "Worker {{ inventory_hostname }} will run: {{ join_command }}"
-      when: not kubelet_conf.stat.exists
 
     - name: Join the cluster
       command: "{{ join_command }}"
