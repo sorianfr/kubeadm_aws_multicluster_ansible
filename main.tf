@@ -296,7 +296,7 @@ resource "local_file" "ansible_inventory" {
     worker_hosts = join("\n", flatten([
       for cluster_name, cluster in local.cluster_details : [
         for worker in cluster.workers : 
-        "${worker.hostname} ansible_host=${worker.ip} ansible_user=ubuntu"
+        "${worker.hostname} ansible_host=${worker.ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/my_k8s_key.pem"
       ]
     ]))
 
