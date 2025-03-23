@@ -335,10 +335,11 @@ kubernetes_clusters:
     control_plane: "${cluster.control_plane.ip}"
     pod_cidr: "${cluster.pod_subnet}"
     service_cidr: "${cluster.service_cidr}"
+    asn: "${cluster.asn}"
     dns_domain: "${cluster_name}.local"
     workers:%{ for worker in cluster.workers }
       - "${worker.ip}"%{ endfor }
-    encapsulation: var.encapsulation
+    encapsulation: "${var.encapsulation}"
 %{ endfor }
 EOT
 }
