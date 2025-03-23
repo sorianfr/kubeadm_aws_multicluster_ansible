@@ -1,0 +1,46 @@
+- name: Apply Calico BGP peers
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml
+
+  tasks:
+    - name: Set local cluster name
+      set_fact:
+        source_cluster: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+    - name: Set local ASN and peers
+      set_fact:
+        source_asn: "{{ kubernetes_clusters[source_cluster].asn }}"
+        bgp_peers: "{{ kubernetes_clusters[source_cluster].bgp_peers | default([]) }}"
+        kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+    - name: Build BGP peer objects
+      set_fact:
+        peer_objects: >-
+          {{
+            bgp_peers | map('combine', {
+              'source_cluster': source_cluster,
+              'target_node': item.target_cluster ~ "controlplane",
+              'peer_ip': kubernetes_clusters[item.target_cluster].control_plane,
+              'peer_asn': kubernetes_clusters[item.target_cluster].asn
+            }) | list
+          }}
+      loop: "{{ bgp_peers }}"
+      loop_control:
+        loop_var: item
+
+    - name: Create BGPPeer manifest files
+      template:
+        src: "../templates/bgppeer.yaml.j2"
+        dest: "/tmp/bgppeer-{{ item.source_cluster }}-to-{{ item.target_node }}.yaml"
+        mode: '0644'
+      loop: "{{ peer_objects }}"
+
+    - name: Apply BGPPeer resources
+      command: >
+        kubectl apply -f /tmp/bgppeer-{{ item.source_cluster }}-to-{{ item.target_node }}.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      loop: "{{ peer_objects }}"

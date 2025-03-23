@@ -1,0 +1,29 @@
+- name: Apply Calico BGP configuration
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml
+
+  tasks:
+    - name: Extract cluster name
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+    - name: Set cluster-specific BGP vars
+      set_fact:
+        asn: "{{ kubernetes_clusters[cluster_name].asn }}"
+        service_cidr: "{{ kubernetes_clusters[cluster_name].service_cidr }}"
+        kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+    - name: Template Calico BGPConfiguration
+      template:
+        src: "../templates/bgpconfig.yaml.j2"
+        dest: "/tmp/bgpconfig-{{ cluster_name }}.yaml"
+        mode: '0644'
+
+    - name: Apply Calico BGPConfiguration
+      command: >
+        kubectl apply -f /tmp/bgpconfig-{{ cluster_name }}.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
