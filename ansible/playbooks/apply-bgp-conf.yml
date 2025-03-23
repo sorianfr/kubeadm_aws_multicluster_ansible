@@ -18,12 +18,12 @@
 
     - name: Template Calico BGPConfiguration
       template:
-        src: "../templates/bgpconfig.yaml.j2"
-        dest: "/tmp/bgpconfig-{{ cluster_name }}.yaml"
+        src: "../templates/bgp-conf.yaml.j2"
+        dest: "/tmp/bgp-conf-{{ cluster_name }}.yaml"
         mode: '0644'
 
     - name: Apply Calico BGPConfiguration
       command: >
-        kubectl apply -f /tmp/bgpconfig-{{ cluster_name }}.yaml
+        kubectl apply -f /tmp/bgp-conf-{{ cluster_name }}.yaml
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"

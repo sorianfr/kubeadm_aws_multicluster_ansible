@@ -339,6 +339,8 @@ kubernetes_clusters:
     dns_domain: "${cluster_name}.local"
     workers:%{ for worker in cluster.workers }
       - "${worker.ip}"%{ endfor }
+    bgp_peers:%{ for peer in cluster.bgp_peers }
+      - target_cluster: ${peer.target_cluster}%{ endfor }
     encapsulation: "${var.encapsulation}"
 %{ endfor }
 EOT
