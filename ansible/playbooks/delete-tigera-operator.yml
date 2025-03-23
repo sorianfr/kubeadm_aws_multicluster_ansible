@@ -1,0 +1,11 @@
+- name: Uninstall Tigera operator from each cluster
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Delete Tigera Operator
+      command: >
+        kubectl delete -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/tigera-operator.yaml --ignore-not-found
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+

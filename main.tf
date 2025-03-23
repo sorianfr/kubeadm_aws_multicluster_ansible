@@ -338,6 +338,7 @@ kubernetes_clusters:
     dns_domain: "${cluster_name}.local"
     workers:%{ for worker in cluster.workers }
       - "${worker.ip}"%{ endfor }
+    encapsulation: var.encapsulation
 %{ endfor }
 EOT
 }
