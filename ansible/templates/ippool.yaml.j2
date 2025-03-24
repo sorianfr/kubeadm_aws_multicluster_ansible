@@ -1,9 +1,19 @@
-apiVersion: projectcalico.org/v3
+apiVersion: crd.projectcalico.org/v1
 kind: IPPool
 metadata:
-  name: ippool-{{ cidr_type }}-{{ target_cluster }}
+  name: {{ target_cluster }}-svc-cidr
 spec:
-  cidr: {{ cidr }}
-  disabled: false
-  natOutgoing: true
-  ipipMode: Always
+  cidr: {{ kubernetes_clusters[target_cluster].service_cidr }}
+  ipipMode: CrossSubnet
+  disabled: true
+
+---
+
+apiVersion: crd.projectcalico.org/v1
+kind: IPPool
+metadata:
+  name: {{ target_cluster }}-pod-cidr
+spec:
+  cidr: {{ kubernetes_clusters[target_cluster].pod_cidr }}
+  ipipMode: CrossSubnet
+  disabled: true

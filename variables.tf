@@ -30,7 +30,7 @@ variable "ami_id" {
 variable "encapsulation" {
   description = "The Encapsulatin method used by Calico"
   type        = string
-  default     = "IPIP"
+  default     = "IPIPCrossSubnet"
 }
 
 
