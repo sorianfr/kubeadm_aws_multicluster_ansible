@@ -10,6 +10,7 @@ locals {
       asn           = cluster.asn      
       service_cidr  = cluster.service_cidr
       pod_subnet    = cluster.pod_subnet
+      bgp_peers     = cluster.bgp_peers
       control_plane = {
         ip       = cluster.controlplane_private_ip
         hostname = "${cluster.cluster_name}controlplane"
