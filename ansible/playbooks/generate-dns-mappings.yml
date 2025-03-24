@@ -1,0 +1,34 @@
+---
+- name: Generate DNS IP mapping for all clusters
+  hosts: controlplanes
+  gather_facts: no
+  tasks:
+    - name: Get the DNS server IP for this cluster
+      shell: |
+        kubectl get svc -n kube-system kube-dns -o jsonpath='{.spec.clusterIP}'
+      register: cluster_dns_ip
+      changed_when: false
+
+    - name: Extract cluster name from inventory_hostname
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane$', '') }}"  # Removing '_controlplane' suffix
+
+    - name: Set DNS IP mapping for this cluster
+      set_fact:
+        cluster_dns_mapping: "{{ cluster_dns_mapping | default({}) | combine({cluster_name: cluster_dns_ip.stdout}) }}"
+
+    - name: Save the DNS mapping in a valid hostvars key
+      set_fact:
+        dns_mapping_results: "{{ dns_mapping_results | default({}) | combine({cluster_name: cluster_dns_ip.stdout}) }}"
+
+- name: Display accumulated DNS IP mapping across all clusters
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Gather DNS mapping results from all controlplanes
+      set_fact:
+        all_dns_mappings: "{{ groups['controlplanes'] | map('extract', hostvars, 'dns_mapping_results') | list }}"
+
+    - name: Display DNS IP mapping for all clusters
+      debug:
+        msg: "{{ all_dns_mappings }}"
