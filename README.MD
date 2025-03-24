@@ -29,7 +29,8 @@
    ansible-playbook -i inventory.ini playbooks/tigera-operator.yml
    ansible-playbook -i inventory.ini playbooks/apply-bgp-conf.yml
    ansible-playbook -i inventory.ini playbooks/apply-bgp-peers.yml
-   
+   ansible-playbook -i inventory.ini playbooks/install-calicoctl-and-node-status.yml
+   ansible-playbook -i inventory.ini playbooks/create-ippools.yml
 
 ## BGP Configuration
 
