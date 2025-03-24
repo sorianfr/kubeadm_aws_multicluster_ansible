@@ -1,7 +1,8 @@
 apiVersion: projectcalico.org/v3
 kind: BGPPeer
 metadata:
-  name: bgp-peer-from{{ source_cluster }}-to-{{ target_node }}
+  name: bgp-peer-from{{ source_cluster }}-to-{{ node_name }}
 spec:
+  node: {{ node_name }}
   peerIP: {{ peer_ip }}
   asNumber: {{ peer_asn }}

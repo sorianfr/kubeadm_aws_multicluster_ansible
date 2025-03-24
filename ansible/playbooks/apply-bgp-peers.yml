@@ -51,6 +51,11 @@
         dest: "/tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml"
         mode: '0644'
       loop: "{{ peer_objects }}"
+      vars:
+        node_name: "{{ item.node_name }}"
+        peer_ip: "{{ item.peer_ip }}"
+        peer_asn: "{{ item.peer_asn }}"
+        source_cluster: "{{ item.source_cluster }}"
 
     - name: Apply BGP peer resources
       command: >
