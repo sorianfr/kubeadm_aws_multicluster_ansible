@@ -1,0 +1,47 @@
+- name: Create Calico IPPools for target cluster subnets
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml
+
+  tasks:
+    - name: Set local cluster name
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+        kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+    - name: Get BGP peer target clusters
+      set_fact:
+        target_clusters: "{{ kubernetes_clusters[cluster_name].bgp_peers | map(attribute='target_cluster') | list }}"
+
+    - name: Generate IP pool objects for each target cluster
+      set_fact:
+        ippools: >-
+          {%- set result = [] -%}
+          {%- for target in target_clusters -%}
+            {%- set _ = result.append({
+              'target_cluster': target,
+              'cidr_type': 'pod',
+              'cidr': kubernetes_clusters[target].pod_cidr
+            }) -%}
+            {%- set _ = result.append({
+              'target_cluster': target,
+              'cidr_type': 'svc',
+              'cidr': kubernetes_clusters[target].service_cidr
+            }) -%}
+          {%- endfor -%}
+          {{ result }}
+
+    - name: Render IPPool manifests
+      template:
+        src: ../templates/ippool.yaml.j2
+        dest: "/tmp/ippool-{{ item.cidr_type }}-{{ item.target_cluster }}.yaml"
+      loop: "{{ ippools }}"
+
+    - name: Apply IPPools
+      command: >
+        kubectl apply -f /tmp/ippool-{{ item.cidr_type }}-{{ item.target_cluster }}.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      loop: "{{ ippools }}"

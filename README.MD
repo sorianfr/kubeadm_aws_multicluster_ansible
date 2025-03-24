@@ -27,6 +27,9 @@
    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbooks/kubeadm.yml
    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbooks/join_workers.yml 
    ansible-playbook -i inventory.ini playbooks/tigera-operator.yml
+   ansible-playbook -i inventory.ini playbooks/apply-bgp-conf.yml
+   ansible-playbook -i inventory.ini playbooks/apply-bgp-peers.yml
+   
 
 ## BGP Configuration
 

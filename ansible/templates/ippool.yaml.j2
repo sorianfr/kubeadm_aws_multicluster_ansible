@@ -1,0 +1,9 @@
+apiVersion: projectcalico.org/v3
+kind: IPPool
+metadata:
+  name: ippool-{{ cidr_type }}-{{ target_cluster }}
+spec:
+  cidr: {{ cidr }}
+  disabled: false
+  natOutgoing: true
+  ipipMode: Always
