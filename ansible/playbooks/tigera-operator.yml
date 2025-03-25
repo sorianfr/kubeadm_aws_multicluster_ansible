@@ -35,6 +35,16 @@
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
 
+    - name: Wait for Calico CRD (installations.operator.tigera.io) to be registered
+      shell: kubectl get crd installations.operator.tigera.io
+      register: wait_for_calico_crd
+      until: wait_for_calico_crd.rc == 0
+      retries: 10
+      delay: 5
+      when: is_primary_controlplane and calico_crd_check.rc != 0
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
     - name: Template custom Calico resources
       template:
         src: "../templates/custom-resources.yaml.j2"
@@ -47,6 +57,17 @@
       when: is_primary_controlplane
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
+
+    - name: Wait until Calico pods are created
+      shell: >
+        kubectl get pods -n calico-system --no-headers | grep -q calico
+      register: calico_pods_exist
+      retries: 20
+      delay: 5
+      until: calico_pods_exist.rc == 0
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: is_primary_controlplane
 
     - name: Wait for Calico pods to be ready
       command: >

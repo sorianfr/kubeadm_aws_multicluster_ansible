@@ -31,6 +31,8 @@
    ansible-playbook -i inventory.ini playbooks/apply-bgp-peers.yml
    ansible-playbook -i inventory.ini playbooks/install-calicoctl-and-node-status.yml
    ansible-playbook -i inventory.ini playbooks/create-ippools.yml
+   ansible-playbook -i inventory.ini playbooks/patch-felix-externalnodes.yml
+   ansible-playbook -i inventory.ini playbooks/generate-dns-mappings.yml
 
 ## BGP Configuration
 

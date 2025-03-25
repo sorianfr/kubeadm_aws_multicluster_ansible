@@ -1,0 +1,73 @@
+- name: Patch CoreDNS ConfigMap with peer cluster DNS blocks
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: Set current cluster name
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+    - name: Set peer clusters (excluding current)
+      set_fact:
+        peer_clusters: >-
+          {{
+            kubernetes_clusters.keys()
+            | reject('equalto', cluster_name)
+            | list
+          }}
+ 
+    - name: Build DNS peer list
+      set_fact:
+        dns_peers: >-
+           [{% for peer in peer_clusters %}
+           {
+            "name": "{{ peer }}",
+            "dns_ip": "{{ kubernetes_clusters[peer].service_cidr | regex_replace('/.*$', '') }}.10"
+           }{% if not loop.last %},{% endif %}
+           {% endfor %}]
+
+    - name: Fix DNS IPs in dns_peers
+      set_fact:
+        dns_peers: >-
+          [{% for peer in peer_clusters %}
+            {
+              "name": "{{ peer }}",
+              "dns_ip": "{{ kubernetes_clusters[peer].service_cidr | regex_replace('/.*$', '') }}.10"
+            }{% if not loop.last %},{% endif %}
+          {% endfor %}]
+
+            
+    - name: Template DNS forwarding blocks
+      template:
+        src: "../templates/coredns-blocks.j2"
+        dest: "/tmp/coredns-peers-{{ cluster_name }}.block"
+        mode: "0644"
+
+    - name: Fetch current CoreDNS config
+      command: kubectl get configmap coredns -n kube-system -o json
+      register: coredns_config
+      environment:
+        KUBECONFIG: "/etc/kubernetes/admin.conf"
+
+    - name: Patch CoreDNS configmap with peer blocks
+      copy:
+        dest: "/tmp/coredns-patch.sh"
+        mode: "0755"
+        content: |
+          #!/bin/bash
+          TMPFILE=$(mktemp)
+          kubectl get configmap coredns -n kube-system -o yaml > $TMPFILE
+          echo >> $TMPFILE
+          cat /tmp/coredns-peers-{{ cluster_name }}.block >> $TMPFILE
+          kubectl apply -f $TMPFILE
+
+    - name: Execute patch script
+      command: bash /tmp/coredns-patch.sh
+      environment:
+        KUBECONFIG: "/etc/kubernetes/admin.conf"
+
+    - name: Restart CoreDNS pods
+      command: kubectl rollout restart deployment coredns -n kube-system
+      environment:
+        KUBECONFIG: "/etc/kubernetes/admin.conf"

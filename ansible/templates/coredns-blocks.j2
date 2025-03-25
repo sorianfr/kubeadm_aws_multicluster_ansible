@@ -1,0 +1,7 @@
+{% for peer in dns_peers %}
+{{ peer.name }}.local:53 {
+    errors
+    cache 30
+    forward . {{ peer.dns_ip }}
+}
+{% endfor %}
