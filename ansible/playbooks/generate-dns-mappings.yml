@@ -11,24 +11,101 @@
 
     - name: Extract cluster name from inventory_hostname
       set_fact:
-        cluster_name: "{{ inventory_hostname | regex_replace('controlplane$', '') }}"  # Removing '_controlplane' suffix
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane$', '') }}"
 
     - name: Set DNS IP mapping for this cluster
       set_fact:
-        cluster_dns_mapping: "{{ cluster_dns_mapping | default({}) | combine({cluster_name: cluster_dns_ip.stdout}) }}"
-
-    - name: Save the DNS mapping in a valid hostvars key
-      set_fact:
         dns_mapping_results: "{{ dns_mapping_results | default({}) | combine({cluster_name: cluster_dns_ip.stdout}) }}"
 
-- name: Display accumulated DNS IP mapping across all clusters
+- name: Collect all DNS mappings into a global var
   hosts: localhost
   gather_facts: no
   tasks:
-    - name: Gather DNS mapping results from all controlplanes
+    - name: Combine mappings from all controlplanes
       set_fact:
-        all_dns_mappings: "{{ groups['controlplanes'] | map('extract', hostvars, 'dns_mapping_results') | list }}"
+        all_dns_mappings: >-
+          {{
+            groups['controlplanes']
+            | map('extract', hostvars, 'dns_mapping_results')
+            | select('defined')
+            | list
+            | combine
+          }}
 
-    - name: Display DNS IP mapping for all clusters
+    - name: Make DNS mappings available to all hosts
+      add_host:
+        name: "{{ item }}"
+        groups: dns_configured
+        all_dns_mappings: "{{ all_dns_mappings }}"
+      loop: "{{ groups['controlplanes'] }}"
+
+    - name: Show collected DNS IPs
       debug:
-        msg: "{{ all_dns_mappings }}"
+        var: all_dns_mappings
+
+- name: Patch CoreDNS ConfigMap with DNS forwarding blocks for peer clusters
+  hosts: dns_configured
+  gather_facts: no
+  vars:
+    corefile_patch_path: "/tmp/coredns-peer-blocks.conf"
+  tasks:
+    - name: Extract current cluster name
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane$', '') }}"
+
+    - name: Define peer clusters
+      set_fact:
+        peer_clusters: "{{ all_dns_mappings.keys() | difference([cluster_name]) }}"
+
+    - name: Build CoreDNS peer forwarding blocks
+      set_fact:
+        peer_dns_blocks: |
+          {% for peer in peer_clusters %}
+          {{ peer }}.local:53 {
+              errors
+              cache 30
+              forward . {{ all_dns_mappings[peer] }}
+          }
+          {% endfor %}
+
+    - name: Fetch current CoreDNS config
+      command: kubectl get configmap coredns -n kube-system -o json
+      register: coredns_config_raw
+
+    - name: Extract Corefile from config
+      set_fact:
+        current_corefile: "{{ coredns_config_raw.stdout | from_json | json_query('data.Corefile') }}"
+
+    - name: Append peer DNS blocks to Corefile
+      set_fact:
+        updated_corefile: "{{ current_corefile + '\n\n' + peer_dns_blocks }}"
+
+    - name: Generate valid CoreDNS ConfigMap YAML with updated Corefile
+      copy:
+        dest: /tmp/coredns-updated-configmap.yaml
+        content: |
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: coredns
+            namespace: kube-system
+
+    - name: Generate valid CoreDNS ConfigMap YAML with updated Corefile
+      copy:
+        dest: /tmp/coredns-updated-configmap.yaml
+        mode: '0644'
+        content: |
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: coredns
+            namespace: kube-system
+          data:
+            Corefile: |
+              {{ updated_corefile | indent(14, false) }}
+    
+    - name: Apply updated CoreDNS ConfigMap
+      command: kubectl apply -f /tmp/coredns-updated-configmap.yaml
+    
+    - name: Restart CoreDNS pods
+      command: kubectl rollout restart deployment coredns -n kube-system
