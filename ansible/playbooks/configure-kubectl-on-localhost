@@ -1,0 +1,28 @@
+- name: Configure kubectl on localhost for all clusters
+  hosts: controlplanes
+  gather_facts: no
+  become: yes
+  vars_files:
+    - ../vars.yml
+
+  tasks:
+    - name: Fetch kubeconfig from controlplane
+      slurp:
+        src: /etc/kubernetes/admin.conf
+      register: kubeconfig_content
+
+    - name: Save kubeconfig locally with cluster-specific name
+      delegate_to: localhost
+      become: false
+      copy:
+        content: "{{ kubeconfig_content.content | b64decode }}"
+        dest: "~/.kube/{{ inventory_hostname }}.conf"
+        mode: '0600'
+
+    - name: Merge kubeconfig into local ~/.kube/config
+      delegate_to: localhost
+      become: false
+      shell: |
+        KUBECONFIG=~/.kube/config:~/.kube/{{ inventory_hostname }}.conf kubectl config view --flatten > ~/.kube/tmp_config && mv ~/.kube/tmp_config ~/.kube/config
+      args:
+        executable: /bin/bash
