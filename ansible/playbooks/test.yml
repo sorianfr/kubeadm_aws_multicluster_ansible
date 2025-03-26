@@ -1,0 +1,65 @@
+- name: Generate and apply CalicoNodeStatus manifests for all nodes
+  hosts: all
+  become: yes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml
+
+  tasks:
+    - name: Extract cluster name from inventory_hostname
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('(controlplane|worker).*', '') }}"
+
+    - name: Define controlplane host for this node
+      set_fact:
+        controlplane_host: "{{ groups['controlplanes'] | select('match', cluster_name) | list | first }}"
+        kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+    - name: Install calicoctl
+      get_url:
+        url: https://github.com/projectcalico/calico/releases/download/v3.29.0/calicoctl-linux-amd64
+        dest: /usr/local/bin/calicoctl
+        mode: '0755'
+
+    - name: Generate CalicoNodeStatus YAML manifest locally on each node
+      template:
+        src: ../templates/calico-node-status.yaml.j2
+        dest: "/tmp/{{ cluster_name }}-{{ inventory_hostname }}-node-status.yaml"
+        mode: '0644'
+      vars:
+        node_name: "{{ inventory_hostname }}"
+
+    - name: Fetch manifest to localhost
+      fetch:
+        src: "/tmp/{{ cluster_name }}-{{ inventory_hostname }}-node-status.yaml"
+        dest: "tmp_manifests/"
+        flat: yes
+
+    - name: Copy manifest to controlplane
+      copy:
+        src: "tmp_manifests/{{ cluster_name }}-{{ inventory_hostname }}-node-status.yaml"
+        dest: "/tmp/{{ cluster_name }}-{{ inventory_hostname }}-node-status.yaml"
+        remote_src: no
+      delegate_to: "{{ controlplane_host }}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    - name: Apply manifest from controlplane
+      command: >
+        kubectl apply -f /tmp/{{ cluster_name }}-{{ inventory_hostname }}-node-status.yaml
+      delegate_to: "{{ controlplane_host }}"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
