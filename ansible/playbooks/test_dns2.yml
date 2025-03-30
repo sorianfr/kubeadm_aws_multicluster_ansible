@@ -1,0 +1,85 @@
+- name: Modify and Apply CoreDNS ConfigMap
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml
+  tasks:
+    - name: Set the current cluster name
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+    - name: Set peer clusters (excluding the current cluster)
+      set_fact:
+        peer_clusters: >-
+          {{
+            kubernetes_clusters.keys()
+            | reject('equalto', cluster_name)
+            | list
+          }}
+
+
+
+
+
+
+
+
+    - name: Build DNS peer list
+      set_fact:
+        dns_peers: >-
+          [{% for peer in peer_clusters %}
+           {
+            "name": "{{ peer }}",
+            "dns_ip": "{{ kubernetes_clusters[peer].service_cidr | regex_replace('/.*$', '') | regex_replace('\.0$', '') }}.10"
+           }{% if not loop.last %},{% endif %}
+           {% endfor %}]
+
+    - name: Modify Corefile section
+      set_fact:
+        modified_corefile: |
+          .:53 {
+            errors
+            health {
+               lameduck 5s
+            }
+            ready
+            kubernetes {{ cluster_name }}.local in-addr.arpa ip6.arpa {
+               pods insecure
+               fallthrough in-addr.arpa ip6.arpa
+               ttl 30
+            }
+            prometheus :9153
+            forward . /etc/resolv.conf {
+               max_concurrent 1000
+            }
+            cache 30
+            loop
+            reload
+            loadbalance
+            import /etc/coredns/custom/*.override
+          }
+
+          {% for peer in dns_peers %}
+          {{ peer.name }}.local:53 {
+              errors
+              cache 30
+              forward . {{ peer.dns_ip }}
+          }
+          {% endfor %}
+
+          import /etc/coredns/custom/*.server
+
+    - name: Save the Corefile to a temporary file
+      copy:
+        dest: "/tmp/coredns-modified-{{ cluster_name }}.yaml"
+        content: |
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: coredns
+            namespace: kube-system
+          data:
+            Corefile: |
+              {{ modified_corefile }}
+
