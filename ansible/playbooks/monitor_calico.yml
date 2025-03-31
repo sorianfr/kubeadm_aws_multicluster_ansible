@@ -1,0 +1,41 @@
+- name: Monitor Calico pods and restart resources on non-working clusters
+  hosts: controlplanes  # Run on each control plane to monitor pods
+  gather_facts: no
+  become: yes
+  tasks:
+    - name: Set cluster-specific variables
+      set_fact:
+        timeout: 120  # 2 minutes timeout
+        start_time: "{{ lookup('pipe', 'date +%s') }}"
+        kubeconfig_path: "/etc/kubernetes/admin.conf"
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+    - name: Monitor Calico pods and ensure they are ready
+      shell: |
+        ready_pods=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[?(@.status.containerStatuses[*].ready=="true")].metadata.name}' | wc -w)
+        total_pods=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[*].metadata.name}' | wc -w)
+
+        if [ "$total_pods" -gt 0 ]; then
+          ready_fraction=$(echo "scale=2; $ready_pods / $total_pods" | bc -l)
+          echo "Ready pods fraction: $ready_fraction"
+        else
+          echo "No pods found"
+        fi
+      register: pod_status
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+    
+    - name: Extract ready_fraction as float
+      set_fact:
+        ready_fraction_value: "{{ pod_status.stdout | regex_search('Ready pods fraction: ([0-9]+\\.[0-9]+)', '\\1') | float }}"
+
+    - name: Print pod readiness fraction
+      debug:
+        msg: "The fraction of ready Calico pods is: {{ ready_fraction_value }}"
+      when: ready_fraction_value is defined
+
+    - name: Trigger the reinstallation playbook if Calico pods are not ready
+      delegate_to: localhost  # Execute the playbook from localhost, not control plane
+      ansible.builtin.command:
+        cmd: ansible-playbook -i inventory.ini --limit "{{ inventory_hostname }}" /playbooks/test_calico.yml
+      when: ready_fraction_value < 1.0

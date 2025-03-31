@@ -18,13 +18,6 @@
             | list
           }}
 
-
-
-
-
-
-
-
     - name: Build DNS peer list
       set_fact:
         dns_peers: >-
@@ -50,9 +43,7 @@
                ttl 30
             }
             prometheus :9153
-            forward . /etc/resolv.conf {
-               max_concurrent 1000
-            }
+            forward . 8.8.8.8 1.1.1.1
             cache 30
             loop
             reload
