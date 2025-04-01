@@ -39,9 +39,8 @@
               ready
               kubernetes {{ cluster_name }}.local in-addr.arpa ip6.arpa {
                  pods insecure
-                fallthrough in-addr.arpa ip6.arpa
-                ttl 30
-              }
+              }  
+              fallthrough in-addr.arpa ip6.arpa
               prometheus :9153
               forward . 8.8.8.8 1.1.1.1
               cache 30
@@ -49,19 +48,18 @@
               reload
               loadbalance
               import /etc/coredns/custom/*.override
-            }
 
-            {% for peer in dns_peers %}
-            {{ peer.name }}.local:53 {
-                errors
-                cache 30
-                forward . {{ peer.dns_ip }}
-            }
-            {% endfor %}
+          {% for peer in dns_peers %}
+          {{ peer.name }}.local:53 {
+              errors
+              cache 30
+              forward . {{ peer.dns_ip }}
+          }
+          {% endfor %}
 
-              import /etc/coredns/custom/*.server
+          import /etc/coredns/custom/*.server
 
-    - name: Save the Corefile to a temporary file
+    - name: Save the Corefile to a temporary file  
       copy:
         dest: "/tmp/coredns-modified-{{ cluster_name }}.yaml"
         content: |
@@ -72,5 +70,4 @@
             namespace: kube-system
           data:
             Corefile: |
-              {{ modified_corefile }}
-
+              {{ modified_corefile | indent(12) }}

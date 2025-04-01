@@ -9,12 +9,13 @@
         start_time: "{{ lookup('pipe', 'date +%s') }}"
         kubeconfig_path: "/etc/kubernetes/admin.conf"
         cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+        max_retries: 3
+        retry_count: 0  # Initialize retry count
 
     - name: Monitor Calico pods and ensure they are ready
       shell: |
-        ready_pods=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[?(@.status.containerStatuses[*].ready=="true")].metadata.name}' | wc -w)
+        ready_pods=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[?(@.status.containerStatuses[0].ready==true)].metadata.name}' | wc -w)
         total_pods=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[*].metadata.name}' | wc -w)
-
         if [ "$total_pods" -gt 0 ]; then
           ready_fraction=$(echo "scale=2; $ready_pods / $total_pods" | bc -l)
           echo "Ready pods fraction: $ready_fraction"
@@ -24,18 +25,44 @@
       register: pod_status
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"
-    
-    - name: Extract ready_fraction as float
+
+    - name: Set ready_fraction fact
       set_fact:
-        ready_fraction_value: "{{ pod_status.stdout | regex_search('Ready pods fraction: ([0-9]+\\.[0-9]+)', '\\1') | float }}"
+        ready_fraction: "{{ pod_status.stdout | regex_replace('Ready pods fraction: (\\d+\\.\\d+)', '\\1') | default(0) }}"
+      when: pod_status.stdout is defined and pod_status.stdout != ""
 
     - name: Print pod readiness fraction
       debug:
-        msg: "The fraction of ready Calico pods is: {{ ready_fraction_value }}"
-      when: ready_fraction_value is defined
+        msg: "The fraction of ready Calico pods is: {{ ready_fraction }}"
+
+    - name: Trigger the DELETE of CRDS and Tigera Operator
+      command: kubectl delete -f /tmp/custom-resources-{{ cluster_name }}.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: ready_fraction | float < 1.0
+         
+    - name: Delete Tigera Operator
+      command: kubectl delete -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/tigera-operator.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: ready_fraction | float < 1.0  
 
     - name: Trigger the reinstallation playbook if Calico pods are not ready
       delegate_to: localhost  # Execute the playbook from localhost, not control plane
-      ansible.builtin.command:
-        cmd: ansible-playbook -i inventory.ini --limit "{{ inventory_hostname }}" /playbooks/test_calico.yml
-      when: ready_fraction_value < 1.0
+      command: ansible-playbook -i inventory.ini --limit "{{ inventory_hostname }}" /playbooks/test_calico.yml
+      when: ready_fraction < 1
+      register: reinstall_result
+      retries: "{{ max_retries }}"  # Retry up to max_retries
+      delay: 30  # Delay between retries
+      until: reinstall_result.rc == 0  # Ensure successful reinstallation
+
+    - name: Increment retry count if reinstallation failed
+      set_fact:
+        retry_count: "{{ retry_count + 1 }}"
+      when: reinstall_result.rc != 0
+
+    - name: Fail after max retries
+      fail:
+        msg: "Max retries reached. Calico pods are still not ready after {{ max_retries }} attempts."
+      when: retry_count >= max_retries
+
