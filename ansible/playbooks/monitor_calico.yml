@@ -47,19 +47,25 @@
         KUBECONFIG: "{{ kubeconfig_path }}"
       when: ready_fraction | float < 1.0  
 
+    - name: Print ready_fraction for debugging 
+      debug:
+        msg: "The calculated ready_fraction is: {{ ready_fraction }}"    
+      when: ready_fraction is defined
+
     - name: Trigger the reinstallation playbook if Calico pods are not ready
-      delegate_to: localhost  # Execute the playbook from localhost, not control plane
+      delegate_to: localhost
       command: ansible-playbook -i inventory.ini --limit "{{ inventory_hostname }}" /playbooks/test_calico.yml
-      when: ready_fraction < 1
+      when: ready_fraction | float < 1.0  # Ensure pods are not ready
       register: reinstall_result
-      retries: "{{ max_retries }}"  # Retry up to max_retries
-      delay: 30  # Delay between retries
-      until: reinstall_result.rc == 0  # Ensure successful reinstallation
+      retries: "{{ max_retries }}"
+      delay: 30
+      until: reinstall_result.rc == 0
+      ignore_errors: yes
 
     - name: Increment retry count if reinstallation failed
       set_fact:
         retry_count: "{{ retry_count + 1 }}"
-      when: reinstall_result.rc != 0
+      when: reinstall_result is defined and reinstall_result.rc is defined and reinstall_result.rc != 0
 
     - name: Fail after max retries
       fail:

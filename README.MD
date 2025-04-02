@@ -26,12 +26,27 @@
    cd ~/ansible
    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbooks/kubeadm.yml
    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbooks/join_workers.yml 
-   ansible-playbook -i inventory.ini playbooks/tigera-operator.yml
+   ansible-playbook -i inventory.ini playbooks/test_calico.yml
+
+   watch kubectl get pods -n calico-system
+   kubectl get tigerastatus
+
+
+
    ansible-playbook -i inventory.ini playbooks/apply-bgp-conf.yml
    ansible-playbook -i inventory.ini playbooks/apply-bgp-peers.yml
+
+   kubectl exec -n calico-system ds/calico-node -c calico-node -- birdcl show protocols
+   kubectl exec -n calico-system ds/calico-node -c calico-node -- birdcl show route
+
    ansible-playbook -i inventory.ini playbooks/install-calicoctl-and-node-status.yml
+   
+   sudo calicoctl node status
+
    ansible-playbook -i inventory.ini playbooks/create-ippools.yml
    ansible-playbook -i inventory.ini playbooks/patch-felix-externalnodes.yml
+   
+
    ansible-playbook -i inventory.ini playbooks/generate-dns-mappings.yml
 
 ## BGP Configuration

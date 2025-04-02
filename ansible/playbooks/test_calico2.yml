@@ -1,0 +1,201 @@
+---
+- name: Install and Monitor Tigera Calico
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml
+
+  tasks:
+    - name: Get cluster name from inventory hostname
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+    - name: Set cluster-specific variables
+      set_fact:
+        pod_cidr: "{{ kubernetes_clusters[cluster_name].pod_cidr }}"
+        encapsulation: "{{ kubernetes_clusters[cluster_name].encapsulation }}"
+        kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+    - name: Determine if this is the first control plane of the cluster
+      set_fact:
+        is_primary_controlplane: "{{ inventory_hostname == (groups[cluster_name] | select('search', 'controlplane') | list | first) }}"
+
+    # Install Calico if not already installed
+    - name: Check if Tigera operator CRD already exists
+      command: kubectl get crd installations.operator.tigera.io
+      register: calico_crd_check
+      ignore_errors: yes
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: is_primary_controlplane
+
+    - name: Apply Tigera operator manifest (if not already installed)
+      command: >
+        kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/tigera-operator.yaml
+      when: is_primary_controlplane and calico_crd_check.rc != 0
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+    - name: Wait for Calico CRDs to be registered
+      shell: |
+        echo 'Waiting for Calico CRDs to be registered...'
+        until kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; do
+          echo 'Waiting for CRD...'
+          sleep 5
+        done
+      register: crd_check
+      until: crd_check.rc == 0
+      retries: 20
+      delay: 5
+      when: is_primary_controlplane
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+    - name: Template custom Calico resources
+      template:
+        src: "../templates/custom-resources.yaml.j2"
+        dest: "/tmp/custom-resources-{{ cluster_name }}.yaml"
+        mode: '0644'
+
+    - name: Apply Calico Installation and APIServer CRs
+      command: >
+        kubectl apply -f /tmp/custom-resources-{{ cluster_name }}.yaml
+      when: is_primary_controlplane
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+    - name: Initialize resources_not_available variable
+      set_fact:
+        resources_not_available: false
+
+    - name: Wait until Calico, apiserver, and ippools are available
+      shell: |
+        start_time=$(date +%s)
+        while [ "$(kubectl get tigerastatus -v=6 -o=jsonpath='{.items[?(@.metadata.name=="apiserver")].status.conditions[?(@.type=="Available")].status}')" != "True" ] ||
+              [ "$(kubectl get tigerastatus -v=6 -o=jsonpath='{.items[?(@.metadata.name=="calico")].status.conditions[?(@.type=="Available")].status}')" != "True" ] ||
+              [ "$(kubectl get tigerastatus -v=6 -o=jsonpath='{.items[?(@.metadata.name=="ippools")].status.conditions[?(@.type=="Available")].status}')" != "True" ]; do
+          # Check elapsed time
+          current_time=$(date +%s)
+          elapsed_time=$((current_time - start_time))
+
+          # If 60 seconds have passed, stop the loop and move forward
+          if [ "$elapsed_time" -ge 60 ]; then
+            echo "Timeout reached. Resources are still not available."
+            echo "Setting calico_status.rc to 1 due to timeout."
+            return 0  # Gracefully exit and continue the playbook
+          fi
+
+          # Debugging: Print the current status for each resource
+          echo "Current Status of apiserver: $(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="apiserver")].status.conditions[?(@.type=="Available")].status}')"
+          echo "Current Status of calico: $(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="calico")].status.conditions[?(@.type=="Available")].status}')"
+          echo "Current Status of ippools: $(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="ippools")].status.conditions[?(@.type=="Available")].status}')"
+          echo "Waiting for apiserver, calico, and ippools to be available..."
+          sleep 1
+        done
+        echo "Resources are available"
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: is_primary_controlplane
+      register: calico_status
+      failed_when: calico_status.rc != 0  # Mark as failed if not successful
+
+    - name: Record that some resources are not available if timeout is reached
+      set_fact:
+        resources_not_available: true
+      when: calico_status.rc != 0
+
+    - name: Wait for Calico pods to be created
+      shell: >
+        kubectl get pods -n calico-system --no-headers | grep -q calico
+      register: calico_pods_exist
+      retries: 20
+      delay: 5
+      until: calico_pods_exist.rc == 0
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: is_primary_controlplane
+
+    - name: Wait for Calico pods to be ready
+      command: >
+        kubectl wait --for=condition=Ready pods --all -n calico-system --timeout=180s
+      when: is_primary_controlplane
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+    # Monitor Calico pods and ensure they are ready
+    - name: Monitor Calico pods and ensure they are ready
+      shell: |
+        ready_pods=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[?(@.status.containerStatuses[0].ready==true)].metadata.name}' | wc -w)
+        total_pods=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[*].metadata.name}' | wc -w)
+        if [ "$total_pods" -gt 0 ]; then
+          ready_fraction=$(echo "scale=2; $ready_pods / $total_pods" | bc -l)
+          echo "Ready pods fraction: $ready_fraction"
+        else
+          echo "No pods found"
+        fi
+      register: pod_status
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
+    - name: Set ready_fraction fact
+      set_fact:
+        ready_fraction: "{{ (pod_status.stdout | regex_replace('Ready pods fraction: (\\d+\\.\\d+)', '\\1') | default(0)) | float }}"
+      when: pod_status.stdout is defined and pod_status.stdout != ""
+
+    - name: Print pod readiness fraction
+      debug:
+        msg: "The fraction of ready Calico pods is: {{ ready_fraction }}"
+      when: ready_fraction is defined
+
+    # Trigger deletion and reinstallation if resources are not available
+    - name: Trigger the DELETE of CRDS and Tigera Operator if resources are not available
+      command: kubectl delete -f /tmp/custom-resources-{{ cluster_name }}.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: resources_not_available | bool or ready_fraction | float < 1.0
+
+    - name: Delete Tigera Operator if resources are not available
+      command: kubectl delete -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/tigera-operator.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+      when: resources_not_available | bool or ready_fraction | float < 1.0  
+
+    - name: Print ready_fraction for debugging 
+      debug:
+        msg: "The calculated ready_fraction is: {{ ready_fraction }}"    
+      when: ready_fraction is defined
+
+
+    - name: Trigger the reinstallation playbook if Calico pods are not ready or resources are not available
+      delegate_to: localhost
+      command: ansible-playbook /path/to/this/playbook.yml -i inventory.ini --limit "{{ inventory_hostname }}"
+      when: resources_not_available | bool or ready_fraction | float < 1.0
+      register: reinstall_result
+      retries: 3
+      delay: 30
+      until: reinstall_result.rc == 0
+      ignore_errors: yes
+
+    - name: Set default for reinstall_result if not defined
+      set_fact:
+        reinstall_result: "{{ reinstall_result | default({'rc': 0}) }}"
+      when: reinstall_result is not defined  # Only run when reinstall_result is not defined (if task was skipped)
+
+    - name: Debug reinstall_result to check its value
+      debug:
+        msg: "reinstall_result: {{ reinstall_result }}"
+
+
+
+
+    - name: Increment retry count if reinstallation failed
+      set_fact:
+        retry_count: "{{ retry_count + 1 }}"
+      when: reinstall_result.skipped == false and reinstall_result.rc != 0  # Only increment retry count if reinstallation ran and failed
+
+    - name: Fail after max retries
+      fail:
+        msg: "Max retries reached. Calico pods are still not ready after 3 attempts."
+      when: reinstall_result.skipped == false and retry_count >= 3
+
