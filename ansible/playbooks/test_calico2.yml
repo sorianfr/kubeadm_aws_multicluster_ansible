@@ -186,9 +186,6 @@
       debug:
         msg: "reinstall_result: {{ reinstall_result }}"
 
-
-
-
     - name: Increment retry count if reinstallation failed
       set_fact:
         retry_count: "{{ retry_count + 1 }}"

@@ -1,0 +1,18 @@
+---
+- name: Run sequence to Delete and Reinstall Calico Tigera and Apply BGP Conf and Peering on control planes
+  hosts: controlplanes
+  tasks:
+    - name: Task 5
+      import_playbook: test_calico.yml
+
+    - name: Delete Tigera Operator
+      import_playbook: delete-tigera-operator.yml
+
+    - name: Calico and Tigera Operator
+      import_playbook: test_calico.yml
+
+    - name: Apply BGP Configuration
+      import_playbook: apply-bgp-conf.yml
+
+    - name: Apply BGP Peering
+      import_playbook: apply-bgp-peers.yml

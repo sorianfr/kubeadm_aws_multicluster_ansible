@@ -1,0 +1,33 @@
+---
+- name: Run main playbook sequence 
+  hosts: localhost
+  tasks:
+    - name: kubeadm init
+      import_playbook: kubeadm.yml
+
+    - name: join workers
+      import_playbook: join_workers.yml
+
+    - name: Calico with Tigera Operator
+      import_playbook: test_calico2.yml
+
+    - name: Monitor Calico
+      import_playbook: monitor_calico.yml
+      register: monitor_result
+      ignore_errors: yes  # Ignore the failure for retry logic
+
+    - name: Re-run sequence_monitoring_fail.yml if task Monitor Calico fails
+      command: "ansible-playbook /playbooks/sequence_playbook.yml -i inventory.ini"
+      when: monitor_result.rc != 0  # Only re-run if task 4 fails
+      register: monitor_result
+      retries: 3  # Retry up to 3 times
+      delay: 10  # Wait 10 seconds between retries
+      until: monitor_result.rc == 0  # Continue until sequence_playbook succeeds
+
+    - name: Re-run sequence_bgp_peering_fail.yml if task BGP Peering fails
+      command: "ansible-playbook /playbooks/sequence_playbook.yml -i inventory.ini"
+      when: bgp_peering_result.rc != 0  # Only re-run if task 4 fails
+      register: reinstallation_result
+      retries: 3  # Retry up to 3 times
+      delay: 10  # Wait 10 seconds between retries
+      until: reinstallation_result.rc == 0  # Continue until sequence_playbook succeeds

@@ -1,0 +1,13 @@
+- name: Delete CRDs from each cluster
+  hosts: controlplanes
+  become: yes
+  gather_facts: no
+  tasks:
+    - name: Delete CRDs
+      set_fact:
+        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+      command: >
+          kubectl delete -f /tmp/custom-resources-{{ cluster_name }}.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig_path }}"
+
