@@ -1,0 +1,16 @@
+---
+- name: Run sequence to Delete and Reinstall Calico Tigera and Monitoring
+  hosts: controlplanes
+  tasks:
+    - name: Delete CRDs
+      import_playbook: delete-crds.yml
+
+    - name: Delete Tigera Operator
+      import_playbook: delete-tigera-operator.yml
+
+    - name: Calico and Tigera Operator
+      import_playbook: test_calico2.yml
+
+    - name: Monitor Calico
+      import_playbook: monitor_calico.yml
+
