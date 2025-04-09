@@ -3,6 +3,9 @@
   become: yes
   vars_files:
     - ../vars.yml
+  environment:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+
   tasks:
     - name: Ensure /etc/kubernetes directory exists
       file:

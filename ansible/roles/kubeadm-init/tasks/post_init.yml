@@ -1,0 +1,16 @@
+- name: Create .kube directory for user
+  file:
+    path: "{{ kube_user_home }}/.kube"
+    state: directory
+    owner: "{{ kube_user }}"
+    group: "{{ kube_user }}"
+    mode: 0755
+
+- name: Copy kubeconfig to user
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ kube_user_home }}/.kube/config"
+    remote_src: yes
+    owner: "{{ kube_user }}"
+    group: "{{ kube_user }}"
+    mode: 0644

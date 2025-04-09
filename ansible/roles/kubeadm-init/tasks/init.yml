@@ -1,0 +1,8 @@
+- name: Initialize kubeadm
+  command: "kubeadm init --config={{ kubeadm_config_path }}"
+  args:
+    creates: /etc/kubernetes/admin.conf
+  register: init_result
+  retries: 3
+  delay: 30
+  until: init_result is succeeded

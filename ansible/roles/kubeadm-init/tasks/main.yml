@@ -1,0 +1,15 @@
+- name: Include preflight checks and setup
+  include_tasks: preflight.yml
+  tags: preflight
+
+- name: Initialize Kubernetes control plane
+  include_tasks: init.yml
+  tags: init
+
+- name: Perform post-init configuration
+  include_tasks: post_init.yml
+  tags: post_init
+
+- name: Handle join command generation
+  include_tasks: join_command.yml
+  tags: join_command

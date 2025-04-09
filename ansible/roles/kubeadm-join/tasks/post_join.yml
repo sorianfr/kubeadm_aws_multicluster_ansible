@@ -1,0 +1,8 @@
+- name: Verify node joined successfully
+  command: kubectl get nodes {{ inventory_hostname }}
+  register: node_status
+  until: "'Ready' in node_status.stdout"
+  retries: 12
+  delay: 10
+  changed_when: false
+  delegate_to: "{{ controlplane_host }}"

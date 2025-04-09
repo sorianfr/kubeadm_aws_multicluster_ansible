@@ -1,0 +1,25 @@
+- name: Find control plane host for this worker
+  set_fact:
+    controlplane_host: >-
+      {{ groups
+          | dict2items
+          | selectattr('value', 'contains', inventory_hostname)
+          | selectattr('key', 'match', '^cluster[0-9]+$')
+          | map(attribute='value')
+          | map('select', 'search', 'controlplane')
+          | map('first')
+          | list
+          | first }}
+  tags: always
+
+- name: Extract cluster group name
+  set_fact:
+    cluster_group: "{{ controlplane_host | regex_replace('controlplane$', '') }}"
+  tags: always
+
+- name: Verify join command file exists
+  assert:
+    that:
+      - lookup('file', join_command_dir + '/join_command_' + cluster_group + '.txt') != ''
+    msg: "Join command file missing for cluster {{ cluster_group }}"
+  delegate_to: localhost

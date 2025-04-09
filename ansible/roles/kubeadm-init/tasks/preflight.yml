@@ -1,0 +1,11 @@
+- name: Ensure /etc/kubernetes directory exists
+  file:
+    path: /etc/kubernetes
+    state: directory
+    mode: 0755
+
+- name: Copy kubeadm configuration template
+  template:
+    src: kubeadm-config.yaml.j2
+    dest: "{{ kubeadm_config_path }}"
+    mode: 0644

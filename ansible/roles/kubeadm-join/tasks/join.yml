@@ -1,0 +1,26 @@
+- name: Load join command
+  vars:
+    join_file_path: "{{ join_command_dir }}/join_command_{{ cluster_group }}.txt"
+  command: "cat {{ join_file_path }}"
+  register: join_command_raw
+  changed_when: false
+  delegate_to: localhost
+
+- name: Extract join command
+  set_fact:
+    join_command: "{{ join_command_raw.stdout.split('=')[1] }}"
+
+- name: Check if node is already joined
+  stat:
+    path: /etc/kubernetes/kubelet.conf
+  register: kubelet_conf
+
+- name: Join Kubernetes cluster
+  command: "{{ join_command }}"
+  args:
+    timeout: "{{ join_timeout_seconds }}"
+  when: not kubelet_conf.stat.exists
+  register: join_result
+  retries: 3
+  delay: 10
+  until: join_result is succeeded

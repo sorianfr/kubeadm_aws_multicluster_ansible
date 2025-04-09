@@ -1,0 +1,4 @@
+# Default timeout for join operation
+join_timeout_seconds: 300
+# Directory where join commands are stored
+join_command_dir: "/tmp"

@@ -2,6 +2,8 @@
   hosts: workers
   become: yes
   gather_facts: no
+  environment:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
 
   tasks:
     - name: Find control plane host from group

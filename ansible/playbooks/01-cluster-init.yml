@@ -1,0 +1,11 @@
+- name: Initialize Kubernetes Control Plane
+  hosts: controlplanes
+  become: yes
+  vars_files:
+    - ../vars.yml
+  environment:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  
+  roles:
+    - role: kubeadm-init
+      tags: init
