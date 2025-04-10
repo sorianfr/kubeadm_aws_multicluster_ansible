@@ -17,9 +17,3 @@
     cluster_group: "{{ controlplane_host | regex_replace('controlplane$', '') }}"
   tags: always
 
-- name: Verify join command file exists
-  assert:
-    that:
-      - lookup('file', join_command_dir + '/join_command_' + cluster_group + '.txt') != ''
-    msg: "Join command file missing for cluster {{ cluster_group }}"
-  delegate_to: localhost

@@ -1,8 +1,12 @@
-- name: Verify node joined successfully
-  command: kubectl get nodes {{ inventory_hostname }}
+- name: Verify node joined successfully (via control plane)
+  command: "kubectl get nodes {{ inventory_hostname }}"
   register: node_status
   until: "'Ready' in node_status.stdout"
   retries: 12
   delay: 10
   changed_when: false
-  delegate_to: "{{ controlplane_host }}"
+  delegate_to: "{{ controlplane_host }}"  # ← Critical change!
+  vars:
+    ansible_become: false
+    # Ensure kubectl uses proper kubeconfig
+    KUBECONFIG: /etc/kubernetes/admin.conf

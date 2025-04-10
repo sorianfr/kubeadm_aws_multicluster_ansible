@@ -1,11 +1,12 @@
-- name: Include validation tasks
-  include_tasks: validate.yml
-  tags: validate
-
-- name: Include cluster joining tasks
-  include_tasks: join.yml
-  tags: join
-
-- name: Include post-join verification
-  include_tasks: post_join.yml
-  tags: verify
+- block:
+    - name: Include validation tasks
+      include_tasks: validate.yml
+      tags: validate
+    - name: Include cluster joining tasks
+      include_tasks: join.yml
+      tags: join
+    - name: Include post-join verification
+      include_tasks: post_join.yml
+      tags: verify
+  environment:
+      ANSIBLE_HOST_KEY_CHECKING: "False"

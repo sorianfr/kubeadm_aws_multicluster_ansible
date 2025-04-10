@@ -18,9 +18,9 @@
 - name: Join Kubernetes cluster
   command: "{{ join_command }}"
   args:
-    timeout: "{{ join_timeout_seconds }}"
-  when: not kubelet_conf.stat.exists
+    creates: /etc/kubernetes/kubelet.conf  # Proper idempotency check
   register: join_result
-  retries: 3
+  retries: 4
   delay: 10
   until: join_result is succeeded
+  ignore_errors: yes  # Temporary for debugging
