@@ -1,0 +1,34 @@
+- name: Wait for Calico components
+  shell: |
+    start_time=$(date +%s)
+    while [ "$(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="apiserver")].status.conditions[?(@.type=="Available")].status}')" != "True" ] ||
+          [ "$(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="calico")].status.conditions[?(@.type=="Available")].status}')" != "True" ] ||
+          [ "$(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="ippools")].status.conditions[?(@.type=="Available")].status}')" != "True" ]; do
+      current_time=$(date +%s)
+      elapsed_time=$((current_time - start_time))
+      [ $elapsed_time -ge 60 ] && exit 0
+      sleep 1
+    done
+  register: component_status
+  when: is_primary_controlplane
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+
+
+- name: Check pod readiness
+  shell: |
+    ready=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[?(@.status.containerStatuses[0].ready==true)].metadata.name}' | wc -w)
+    total=$(kubectl get pods -n calico-system -l k8s-app=calico-node -o jsonpath='{.items[*].metadata.name}' | wc -w)
+    [ $total -eq 0 ] && echo 0 || echo "scale=2; $ready / $total" | bc
+  register: pod_readiness
+  when: is_primary_controlplane
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+
+
+- name: Set cleanup flag
+  set_fact:
+    needs_cleanup: "{{ (component_status.rc != 0) or (pod_readiness.stdout | float < pod_readiness_threshold) }}"
+  when: is_primary_controlplane
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"

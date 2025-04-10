@@ -1,0 +1,7 @@
+- name: Clean up resources
+  command: "kubectl delete -f /tmp/custom-resources-{{ cluster_name }}.yaml"
+  when: needs_cleanup and is_primary_controlplane
+
+- name: Remove operator
+  command: "kubectl delete -f {{ calico_operator_url }}"
+  when: needs_cleanup and is_primary_controlplane

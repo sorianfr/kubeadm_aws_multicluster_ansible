@@ -1,0 +1,7 @@
+- name: Include installation tasks
+  include_tasks: install.yml
+  tags: install
+
+- name: Include monitoring tasks
+  include_tasks: monitor.yml
+  tags: monitor

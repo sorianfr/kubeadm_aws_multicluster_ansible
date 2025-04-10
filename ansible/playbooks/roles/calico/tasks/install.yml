@@ -1,0 +1,56 @@
+- name: Get cluster name from inventory hostname
+  set_fact:
+    cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+- name: Set cluster-specific variables
+  set_fact:
+    pod_cidr: "{{ kubernetes_clusters[cluster_name].pod_cidr }}"
+    encapsulation: "{{ kubernetes_clusters[cluster_name].encapsulation }}"
+    kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+- name: Determine if this is the first control plane of the cluster
+  set_fact:
+    is_primary_controlplane: "{{ inventory_hostname == (groups[cluster_name] | select('search', 'controlplane') | list | first) }}"
+
+
+- name: Check if Tigera operator CRD already exists
+  command: kubectl get crd installations.operator.tigera.io
+  register: calico_crd_check
+  ignore_errors: yes
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  when: is_primary_controlplane
+
+- name: Apply Tigera operator manifest (if not already installed)
+  command: >
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.0/manifests/tigera-operator.yaml
+  when: is_primary_controlplane and calico_crd_check.rc != 0
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+
+- name: Wait for Calico CRDs to be registered
+  shell: |
+    echo 'Waiting for Calico CRDs to be registered...'   
+    until kubectl get crd installations.operator.tigera.io >/dev/null 2>&1; do
+      echo 'Waiting for CRD...'
+      sleep 5
+    done
+  register: crd_check
+  until: crd_check.rc == 0
+  retries: 20
+  delay: 5
+  when: is_primary_controlplane
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+
+
+- name: Template custom resources
+  template:
+    src: "custom-resources.yaml.j2"
+    dest: "/tmp/custom-resources-{{ cluster_name }}.yaml"
+
+- name: Apply custom resources
+  command: "kubectl apply -f /tmp/custom-resources-{{ cluster_name }}.yaml"
+  when: is_primary_controlplane
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"

@@ -1,0 +1,5 @@
+calico_version: "v3.29.0"
+calico_operator_url: "https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/tigera-operator.yaml"
+max_retries: 3
+retry_delay: 30
+pod_readiness_threshold: 1.0
