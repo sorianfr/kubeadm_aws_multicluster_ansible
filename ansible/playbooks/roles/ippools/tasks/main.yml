@@ -1,0 +1,5 @@
+---
+- name: Create Calico IPPools for BGP peer subnets
+  include_tasks: configure.yml
+  tags: ippools
+

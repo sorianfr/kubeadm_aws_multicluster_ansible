@@ -1,0 +1,9 @@
+- name: Create Calico IPPools for BGP peer subnets
+  hosts: controlplanes
+  become: yes
+  vars_files:
+    - ../vars.yml
+  
+  roles:
+    - role: ippools
+      tags: ippools

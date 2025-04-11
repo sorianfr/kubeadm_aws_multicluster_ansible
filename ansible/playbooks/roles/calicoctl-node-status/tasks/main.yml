@@ -1,0 +1,5 @@
+---
+- name: Install calicoctl and check node status 
+  include_tasks: install.yml
+  tags: calicoctl
+

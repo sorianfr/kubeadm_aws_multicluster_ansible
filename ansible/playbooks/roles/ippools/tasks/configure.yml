@@ -1,0 +1,23 @@
+- name: Set cluster name from inventory_hostname
+  set_fact:
+    cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+    kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+- name: Get target clusters
+  set_fact:
+    target_clusters: "{{ kubernetes_clusters[cluster_name].bgp_peers | map(attribute='target_cluster') | list }}"
+
+- name: Render IPPool manifest for each target cluster
+  template:
+    src: ../templates/ippool.yaml.j2
+    dest: "/tmp/ippool-{{ item }}.yaml"
+  loop: "{{ target_clusters }}"
+  vars:
+    target_cluster: "{{ item }}"
+
+- name: Apply rendered IPPools
+  command: >
+    kubectl apply -f /tmp/ippool-{{ item }}.yaml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  loop: "{{ target_clusters }}"

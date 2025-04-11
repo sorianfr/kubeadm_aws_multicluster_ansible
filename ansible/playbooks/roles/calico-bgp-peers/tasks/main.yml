@@ -1,4 +1,4 @@
 ---
 - name: Configure BGP peers
-  include_tasks: configure2.yml
+  include_tasks: configure.yml
   tags: bgp-peers

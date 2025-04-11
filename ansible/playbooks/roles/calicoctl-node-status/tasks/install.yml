@@ -1,0 +1,19 @@
+- name: Install calicoctl
+    get_url:
+      url: https://github.com/projectcalico/calico/releases/download/v3.29.0/calicoctl-linux-amd64
+      dest: /usr/local/bin/calicoctl
+      mode: '0755'
+
+- name: Apply CalicoNodeStatus for controlplane node
+  template:
+    src: "calico-node-status.yaml.j2"
+    dest: "/tmp/{{ cluster_name }}-{{ inventory_hostname }}-node-status.yaml"
+    mode: '0644'
+  vars:
+    node_name: "{{ inventory_hostname }}"
+
+- name: Apply manifest
+  command: >
+    kubectl apply -f /tmp/{{ cluster_name }}-{{ inventory_hostname }}-node-status.yaml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"

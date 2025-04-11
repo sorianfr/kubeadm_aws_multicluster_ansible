@@ -1,0 +1,34 @@
+- name: Set kubeconfig path
+  set_fact:
+    kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+- name: Set BGP peer IPs for externalNodesList
+  set_fact:
+    external_nodes: >-
+      {{
+        kubernetes_clusters[cluster_name].bgp_peers
+        | map(attribute='target_cluster')
+        | map('extract', kubernetes_clusters)
+        | map(attribute='control_plane')
+        | map('regex_replace', '^(.*)$', '\1/32') | list
+        +
+        kubernetes_clusters[cluster_name].bgp_peers
+        | map(attribute='target_cluster')
+        | map('extract', kubernetes_clusters)
+        | map(attribute='workers')
+        | flatten
+        | map('regex_replace', '^(.*)$', '\1/32') | list
+      }}
+
+- name: Debug IPs to be added to externalNodesList (optional)
+  debug:
+    var: external_nodes
+
+- name: Patch FelixConfiguration with externalNodesList
+  command: >
+    kubectl patch felixconfiguration default
+    --type=merge
+    --patch
+    '{"spec": {"externalNodesList": {{ external_nodes | to_json }} }}'
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"

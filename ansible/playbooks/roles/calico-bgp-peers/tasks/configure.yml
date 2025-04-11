@@ -37,10 +37,16 @@
   debug:
     var: peer_objects
 
-- name: Render BGP peer manifests
+- name: Ensure BGP peer parts directory exists
+  file:
+    path: "/tmp/bgp-peer-parts"
+    state: directory
+    mode: '0755'
+
+- name: Render individual BGP peer manifests
   template:
     src: "bgp-peer.yaml.j2"
-    dest: "/tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml"
+    dest: "/tmp/bgp-peer-parts/peer-{{ item.node_name }}.yaml"
     mode: '0644'
   loop: "{{ peer_objects }}"
   vars:
@@ -48,15 +54,22 @@
     peer_ip: "{{ item.peer_ip }}"
     peer_asn: "{{ item.peer_asn }}"
     source_cluster: "{{ item.source_cluster }}"
+  loop_control:
+    label: "{{ item.node_name }}"
 
+- name: Assemble consolidated BGP peers file
+  assemble:
+    src: "/tmp/bgp-peer-parts"
+    dest: "/tmp/bgp-peers-{{ source_cluster }}.yaml"
+    delimiter: "---\n"
 
-- name: Wait for 30 seconds before proceeding to the next host
-  pause:
-    seconds: 30
+- name: Clean up temporary files
+  file:
+    path: "/tmp/bgp-peer-parts"
+    state: absent
 
-- name: Apply BGP peer resources
+- name: Apply consolidated BGP peer resources
   command: >
-    kubectl apply -f /tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml
+    kubectl apply -f /tmp/bgp-peers-{{ source_cluster }}.yaml
   environment:
     KUBECONFIG: "{{ kubeconfig_path }}"
-  loop: "{{ peer_objects }}"

@@ -1,0 +1,9 @@
+- name: Install calictl and check node status
+  hosts: controlplanes
+  become: yes
+  vars_files:
+    - ../vars.yml
+  
+  roles:
+    - role: calicoctl-node-status
+      tags: calicoctl

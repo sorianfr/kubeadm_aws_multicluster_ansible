@@ -1,0 +1,4 @@
+---
+- name: Patch FelixConfiguration
+  include_tasks: configure.yml
+  tags: felix
