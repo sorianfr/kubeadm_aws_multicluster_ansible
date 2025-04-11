@@ -1,0 +1,62 @@
+---
+- name: Set source cluster name
+  set_fact:
+    source_cluster: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+- name: Load BGP configuration
+  set_fact:
+    source_asn: "{{ kubernetes_clusters[source_cluster].asn }}"
+    bgp_peers: "{{ kubernetes_clusters[source_cluster].bgp_peers | default([]) }}"
+    kubeconfig_path: "/etc/kubernetes/admin.conf"
+
+- name: Build peer objects list
+  set_fact:
+    peer_objects: |
+      {%- set peers = [] -%}
+      {%- for peer in bgp_peers -%}
+        {%- set target = peer.target_cluster -%}
+        {%- set peer_asn = kubernetes_clusters[target].asn -%}
+        {%- set _ = peers.append({
+          'source_cluster': source_cluster,
+          'peer_ip': kubernetes_clusters[target].control_plane,
+          'peer_asn': peer_asn,
+          'node_name': target ~ "controlplane",
+          'peer_type': 'controlplane'
+        }) -%}
+        {%- for ip in kubernetes_clusters[target].workers -%}
+          {%- set _ = peers.append({
+            'source_cluster': source_cluster,
+            'peer_ip': ip,
+            'peer_asn': peer_asn,
+            'node_name': target ~ "worker" ~ loop.index,
+            'peer_type': 'worker'
+          }) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ peers }}
+
+- name: Template BGP peer manifests
+  template:
+    src: "bgp-peer.yaml.j2"
+    dest: "/tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml"
+    mode: '0644'
+  loop: "{{ peer_objects }}"
+  vars:
+    peer: "{{ item | combine(bgp_peer_defaults) }}"
+
+- name: Apply BGP peer configurations
+  command: "kubectl apply -f /tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: peer_apply
+  retries: 3
+  delay: 5
+  until: peer_apply.rc == 0
+  loop: "{{ peer_objects }}"
+
+- name: Verify BGP peer status
+  command: "calicoctl get bgppeer -o wide"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
+  register: bgp_peer_status
+  changed_when: false

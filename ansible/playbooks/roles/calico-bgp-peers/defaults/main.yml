@@ -1,0 +1,6 @@
+---
+# Default BGP peer settings
+bgp_peer_defaults:
+  keepOriginalNextHop: true
+  password: ""
+  maxRestartTime: "90s"

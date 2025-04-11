@@ -1,0 +1,8 @@
+---
+# Default BGP configuration
+bgp_config:
+  as_number: 64512
+  service_cluster_ip_range: "10.96.0.0/12"
+  node_to_node_mesh: false
+  default_bgp_peers: []
+  

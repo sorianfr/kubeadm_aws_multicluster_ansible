@@ -1,0 +1,9 @@
+- name: Configure Calico BGP
+  hosts: controlplanes
+  become: yes
+  vars_files:
+    - ../vars.yml
+  
+  roles:
+    - role: calico-bgp
+      tags: bgp

@@ -1,0 +1,4 @@
+---
+- name: Include BGP configuration tasks
+  include_tasks: configure.yml
+  tags: bgp
