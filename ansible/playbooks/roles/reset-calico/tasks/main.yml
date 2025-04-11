@@ -1,0 +1,9 @@
+- name: Get cluster name from inventory hostname
+  set_fact:
+    cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+
+- name: Clean up resources
+  command: "kubectl delete -f /tmp/custom-resources-{{ cluster_name }}.yaml"
+
+- name: Remove operator
+  command: "kubectl delete -f {{ calico_operator_url }}"

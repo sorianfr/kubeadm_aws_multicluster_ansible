@@ -1,0 +1,35 @@
+---
+---
+- name: Reset Calico configuration
+  hosts: controlplanes
+  become: yes
+  roles:
+    - reset-calico
+
+- name: Reinstall Calico
+  hosts: controlplanes
+  become: yes
+  tasks:
+    - name: Include calico installation
+      include_role:
+        name: calico  # Replace with your actual Calico role name
+      tags: install
+
+- name: Reapply BGP Configuration
+  hosts: controlplanes
+  become: yes
+  tasks:
+    - name: Include BGP configuration
+      include_role:
+        name: calico-bgp  # Replace with your BGP configuration role
+      tags: bgp
+
+- name: Reapply BGP Peers
+  hosts: controlplanes
+  become: yes
+  tasks:
+    - name: Reapply BGP Peers
+      include_role:
+        name: calico-bgp-peers  # Replace with your BGP configuration role
+      tags: bgp-peers
+    
