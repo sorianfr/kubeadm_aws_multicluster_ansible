@@ -24,6 +24,13 @@
 6. Run playbook
    ```bash
    cd ~/ansible
+
+   ansible-playbook -i inventory.ini playbooks/01-cluster-init.yml
+   ansible-playbook -i inventory.ini playbooks/02-join-workers.yml -vvv
+   ansible-playbook -i inventory.ini playbooks/03-calico.yml -vvv
+   ansible-playbook -i inventory.ini playbooks/04-apply-bgp-conf.yml -vvv
+   ansible-playbook -i inventory.ini playbooks/05-apply-bgp-peers.yml -vvv
+
    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbooks/kubeadm.yml
    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory.ini playbooks/join_workers.yml 
    ansible-playbook -i inventory.ini playbooks/test_calico.yml
