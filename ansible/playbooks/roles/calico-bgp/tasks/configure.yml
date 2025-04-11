@@ -6,24 +6,24 @@
     - ../vars.yml
 
   tasks:
-    - name: Extract cluster name
-      set_fact:
-        cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+- name: Extract cluster name
+  set_fact:
+    cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
 
-    - name: Set cluster-specific BGP vars
-      set_fact:
-        asn: "{{ kubernetes_clusters[cluster_name].asn }}"
-        service_cidr: "{{ kubernetes_clusters[cluster_name].service_cidr }}"
-        kubeconfig_path: "/etc/kubernetes/admin.conf"
+- name: Set cluster-specific BGP vars
+  set_fact:
+    asn: "{{ kubernetes_clusters[cluster_name].asn }}"
+    service_cidr: "{{ kubernetes_clusters[cluster_name].service_cidr }}"
+    kubeconfig_path: "/etc/kubernetes/admin.conf"
 
-    - name: Template Calico BGPConfiguration
-      template:
-        src: "../templates/bgp-conf.yaml.j2"
-        dest: "/tmp/bgp-conf-{{ cluster_name }}.yaml"
-        mode: '0644'
+- name: Template Calico BGPConfiguration
+  template:
+    src: "bgp-conf.yaml.j2"
+    dest: "/tmp/bgp-conf-{{ cluster_name }}.yaml"
+    mode: '0644'
 
-    - name: Apply Calico BGPConfiguration
-      command: >
-        kubectl apply -f /tmp/bgp-conf-{{ cluster_name }}.yaml
-      environment:
-        KUBECONFIG: "{{ kubeconfig_path }}"
+- name: Apply Calico BGPConfiguration
+  command: >
+    kubectl apply -f /tmp/bgp-conf-{{ cluster_name }}.yaml
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"

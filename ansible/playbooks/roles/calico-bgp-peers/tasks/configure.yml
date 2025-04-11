@@ -1,17 +1,16 @@
----
-- name: Set source cluster name
+- name: Set source cluster name from inventory_hostname
   set_fact:
     source_cluster: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
 
-- name: Load BGP configuration
+- name: Set bgp_peers and source ASN
   set_fact:
     source_asn: "{{ kubernetes_clusters[source_cluster].asn }}"
     bgp_peers: "{{ kubernetes_clusters[source_cluster].bgp_peers | default([]) }}"
     kubeconfig_path: "/etc/kubernetes/admin.conf"
 
-- name: Build peer objects list
+- name: Build peer_objects list
   set_fact:
-    peer_objects: |
+    peer_objects: >-
       {%- set peers = [] -%}
       {%- for peer in bgp_peers -%}
         {%- set target = peer.target_cluster -%}
@@ -20,43 +19,44 @@
           'source_cluster': source_cluster,
           'peer_ip': kubernetes_clusters[target].control_plane,
           'peer_asn': peer_asn,
-          'node_name': target ~ "controlplane",
-          'peer_type': 'controlplane'
+          'node_name': target ~ "controlplane"
         }) -%}
         {%- for ip in kubernetes_clusters[target].workers -%}
+          {%- set index = loop.index -%}
           {%- set _ = peers.append({
             'source_cluster': source_cluster,
             'peer_ip': ip,
             'peer_asn': peer_asn,
-            'node_name': target ~ "worker" ~ loop.index,
-            'peer_type': 'worker'
+            'node_name': target ~ "worker" ~ index
           }) -%}
         {%- endfor -%}
       {%- endfor -%}
       {{ peers }}
 
-- name: Template BGP peer manifests
+- name: Debug peer_objects (optional)
+  debug:
+    var: peer_objects
+
+- name: Render BGP peer manifests
   template:
     src: "bgp-peer.yaml.j2"
     dest: "/tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml"
     mode: '0644'
   loop: "{{ peer_objects }}"
   vars:
-    peer: "{{ item | combine(bgp_peer_defaults) }}"
+    node_name: "{{ item.node_name }}"
+    peer_ip: "{{ item.peer_ip }}"
+    peer_asn: "{{ item.peer_asn }}"
+    source_cluster: "{{ item.source_cluster }}"
 
-- name: Apply BGP peer configurations
-  command: "kubectl apply -f /tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml"
+
+- name: Wait for 30 seconds before proceeding to the next host
+  pause:
+    seconds: 30
+
+- name: Apply BGP peer resources
+  command: >
+    kubectl apply -f /tmp/bgp-peer-{{ item.source_cluster }}-to-{{ item.node_name }}.yaml
   environment:
     KUBECONFIG: "{{ kubeconfig_path }}"
-  register: peer_apply
-  retries: 3
-  delay: 5
-  until: peer_apply.rc == 0
   loop: "{{ peer_objects }}"
-
-- name: Verify BGP peer status
-  command: "calicoctl get bgppeer -o wide"
-  environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"
-  register: bgp_peer_status
-  changed_when: false

@@ -1,0 +1,10 @@
+- name: Configure Calico BGP Peers
+  hosts: controlplanes
+  serial: 1
+  become: yes
+  vars_files:
+    - ../vars.yml
+  
+  roles:
+    - role: calico-bgp-peers
+      tags: bgp-peers
