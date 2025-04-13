@@ -4,6 +4,9 @@
 
 - name: Clean up resources
   command: "kubectl delete -f /tmp/custom-resources-{{ cluster_name }}.yaml"
-
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
 - name: Remove operator
   command: "kubectl delete -f {{ calico_operator_url }}"
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"
