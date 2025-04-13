@@ -1,7 +1,8 @@
 ---
----
 - name: Reset Calico configuration
   hosts: controlplanes
+  vars_files:
+    - ../vars.yml
   become: yes
   roles:
     - reset-calico
@@ -9,6 +10,8 @@
 - name: Reinstall Calico
   hosts: controlplanes
   become: yes
+  vars_files:
+    - ../vars.yml
   tasks:
     - name: Include calico installation
       include_role:
@@ -17,6 +20,8 @@
 
 - name: Reapply BGP Configuration
   hosts: controlplanes
+  vars_files:
+    - ../vars.yml
   become: yes
   tasks:
     - name: Include BGP configuration
@@ -26,6 +31,8 @@
 
 - name: Reapply BGP Peers
   hosts: controlplanes
+  vars_files:
+    - ../vars.yml
   become: yes
   tasks:
     - name: Reapply BGP Peers

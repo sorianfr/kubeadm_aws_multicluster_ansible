@@ -265,6 +265,8 @@ kubectl create deployment nginx --image=nginx
 
 ```bash
 kubectl create service nodeport nginx --tcp 80:80 
+kubectl patch service nginx -p '{"spec":{"externalTrafficPolicy":"Local"}}'
+
 ```
 
 

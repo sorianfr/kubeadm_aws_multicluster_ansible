@@ -48,7 +48,7 @@
               reload
               loadbalance
               import /etc/coredns/custom/*.override
-
+          }
           {% for peer in dns_peers %}
           {{ peer.name }}.local:53 {
               errors
@@ -70,4 +70,4 @@
             namespace: kube-system
           data:
             Corefile: |
-              {{ modified_corefile | indent(12) }}
+              {{ modified_corefile | indent(14) }}

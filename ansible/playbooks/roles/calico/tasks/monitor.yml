@@ -6,7 +6,7 @@
           [ "$(kubectl get tigerastatus -o=jsonpath='{.items[?(@.metadata.name=="ippools")].status.conditions[?(@.type=="Available")].status}')" != "True" ]; do
       current_time=$(date +%s)
       elapsed_time=$((current_time - start_time))
-      [ $elapsed_time -ge 60 ] && exit 0
+      [ $elapsed_time -ge 90 ] && exit 0
       sleep 1
     done
   register: component_status

@@ -1,1 +1,2 @@
 cluster_name: "{{ inventory_hostname | regex_replace('controlplane', '') }}"
+kubeconfig_path: "/etc/kubernetes/admin.conf"
