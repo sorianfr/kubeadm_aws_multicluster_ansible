@@ -69,5 +69,5 @@
             name: coredns
             namespace: kube-system
           data:
-            Corefile: |
+            Corefile: 
               {{ modified_corefile | indent(14) }}
