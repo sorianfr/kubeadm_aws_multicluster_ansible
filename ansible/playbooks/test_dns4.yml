@@ -50,14 +50,13 @@
     # Task 6: Apply modified ConfigMap
     - name: Apply modified CoreDNS ConfigMap
       command: kubectl apply -f /tmp/coredns-configmap-modified.yaml -n kube-system
+      throttle: 1
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"   
-      register: apply_result
-      changed_when: "'configured' in apply_result.stdout"
 
     # Task 7: Restart CoreDNS
     - name: Restart CoreDNS pods
       command: kubectl rollout restart deployment coredns -n kube-system
+      throttle: 1
       environment:
         KUBECONFIG: "{{ kubeconfig_path }}"   
-      when: apply_result is changed

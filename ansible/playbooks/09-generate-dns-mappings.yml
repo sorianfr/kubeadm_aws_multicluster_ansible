@@ -1,0 +1,9 @@
+- name: Patch FelixConfiguration with External Nodes list
+  hosts: controlplanes
+  become: yes
+  vars_files:
+    - ../vars.yml
+  
+  roles:
+    - role: dns-mappings
+      tags: dns

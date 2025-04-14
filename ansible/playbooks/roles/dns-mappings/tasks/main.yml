@@ -1,0 +1,4 @@
+---
+- name: Configure coredns configmap for dns resolution between clusters 
+  include_tasks: configure.yml
+  tags: dns

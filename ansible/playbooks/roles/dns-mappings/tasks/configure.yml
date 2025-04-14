@@ -1,0 +1,83 @@
+- name: Set peer clusters (excluding the current cluster)
+  set_fact:
+    peer_clusters: >-
+      {{
+        kubernetes_clusters.keys()
+        | reject('equalto', cluster_name)
+        | list
+      }}
+
+- name: Build DNS peer list
+  set_fact:
+    dns_peers: >-
+      [{% for peer in peer_clusters %}
+        {
+        "name": "{{ peer }}",
+        "dns_ip": "{{ kubernetes_clusters[peer].service_cidr | regex_replace('/.*$', '') | regex_replace('\.0$', '') }}.10"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}]
+  # Task 1: Backup original ConfigMap
+- name: Get CoreDNS ConfigMap
+  command: kubectl get configmap coredns -n kube-system -o yaml
+  register: coredns_config
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"   
+
+- name: Save output to file
+  copy:
+    content: "{{ coredns_config.stdout }}"
+    dest: "/tmp/coredns-configmap-original.yaml"
+
+# Task 2: Create working copy
+- name: Create modified ConfigMap file
+  copy:
+    src: /tmp/coredns-configmap-original.yaml
+    dest: /tmp/coredns-configmap-modified.yaml
+    remote_src: yes
+
+# Task 3: Replace resolv.conf with public DNS
+- name: Apply CoreDNS modifications in one task
+  shell: |
+    sed -i '
+      /health {/{N;N;s/health {\n[[:space:]]*lameduck 5s\n[[:space:]]*}/health/}
+      /forward . \/etc\/resolv.conf {/{N;N;s/ {\n[[:space:]]*max_concurrent 1000\n[[:space:]]*}//}
+      /^[[:space:]]*ttl 30$/d
+      s|forward . /etc/resolv.conf|forward . 8.8.8.8 1.1.1.1|g
+    ' /tmp/coredns-configmap-modified.yaml
+  args:
+    executable: /bin/bash
+
+# Task 4: Add peer clusters DNS forwarding
+- name: Add peer cluster DNS configurations
+  command: >-
+    sed -i '/^    }/a \    {{ item.name }}.local:53 {\n        errors\n        cache 30\n        forward . {{ item.dns_ip }}\n    }'
+    /tmp/coredns-configmap-modified.yaml
+  loop: "{{ dns_peers }}"
+  changed_when: false
+
+# Task 5: Add custom imports
+- name: Add custom imports configuration
+  command: >-
+    sed -i '/^kind: ConfigMap$/i \    import /etc/coredns/custom/*.server'
+    /tmp/coredns-configmap-modified.yaml
+  changed_when: false
+
+# Task 6: Add custom imports
+- name: Add custom imports configuration
+  command: >-
+    sed -i '/loadbalance/a\        import /etc/coredns/custom/*.override' /tmp/coredns-configmap-modified.yaml
+  changed_when: false
+
+# Task 7: Apply modified ConfigMap
+- name: Apply modified CoreDNS ConfigMap
+  command: kubectl replace -f /tmp/coredns-configmap-modified.yaml -n kube-system
+  throttle: 1
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"   
+
+# Task 8: Restart CoreDNS
+- name: Restart CoreDNS pods
+  command: kubectl rollout restart deployment coredns -n kube-system
+  throttle: 1
+  environment:
+    KUBECONFIG: "{{ kubeconfig_path }}"   
