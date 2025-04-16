@@ -56,28 +56,28 @@
   changed_when: false
 
 # Task 5: Add custom imports
-- name: Add custom imports configuration
-  command: >-
-    sed -i '/^kind: ConfigMap$/i \    import /etc/coredns/custom/*.server'
-    /tmp/coredns-configmap-modified.yaml
-  changed_when: false
+# - name: Add custom imports configuration
+  # command: >-
+    # sed -i '/^kind: ConfigMap$/i \    import /etc/coredns/custom/*.server'
+    # /tmp/coredns-configmap-modified.yaml
+  # changed_when: false
 
 # Task 6: Add custom imports
-- name: Add custom imports configuration
-  command: >-
-    sed -i '/loadbalance/a\        import /etc/coredns/custom/*.override' /tmp/coredns-configmap-modified.yaml
-  changed_when: false
+# - name: Add custom imports configuration
+  # command: >-
+    # sed -i '/loadbalance/a\        import /etc/coredns/custom/*.override' /tmp/coredns-configmap-modified.yaml
+  # changed_when: false
 
 # Task 7: Apply modified ConfigMap
-- name: Apply modified CoreDNS ConfigMap
-  command: kubectl apply -f /tmp/coredns-configmap-modified.yaml -n kube-system
-  throttle: 1
-  environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"   
+# - name: Apply modified CoreDNS ConfigMap
+  # command: kubectl apply -f /tmp/coredns-configmap-modified.yaml -n kube-system
+  # throttle: 1
+  # environment:
+    # KUBECONFIG: "{{ kubeconfig_path }}"   
 
 # Task 8: Restart CoreDNS
-- name: Restart CoreDNS pods
-  command: kubectl rollout restart deployment coredns -n kube-system
-  throttle: 1
-  environment:
-    KUBECONFIG: "{{ kubeconfig_path }}"   
+# - name: Restart CoreDNS pods
+  # command: kubectl rollout restart deployment coredns -n kube-system
+  # throttle: 1
+  # environment:
+    # KUBECONFIG: "{{ kubeconfig_path }}"   
