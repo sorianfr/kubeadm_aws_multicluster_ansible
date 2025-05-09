@@ -1,0 +1,75 @@
+---
+- name: Copy, update, and fetch kubeconfig files from control planes
+  hosts: controlplanes
+  gather_facts: no
+  vars_files:
+    - ../vars.yml  # Load vars.yml from the parent directory
+
+  tasks:
+    - name: Fetch kubeconfig for this control plane
+      ansible.builtin.fetch:
+        src: "/home/ubuntu/.kube/config"
+        dest: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        flat: yes
+
+    - name: Update cluster name
+      ansible.builtin.replace:
+        path: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        regexp: '^(\s+name:\s+)kubernetes$'
+        replace: '\1{{ cluster_name }}'
+      delegate_to: localhost
+
+    - name: Update context.cluster reference
+      ansible.builtin.replace:
+        path: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        regexp: '^(\s+cluster:\s+)kubernetes$'
+        replace: '\1{{ cluster_name }}'
+      delegate_to: localhost
+
+    - name: Update context name
+      ansible.builtin.replace:
+        path: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        regexp: '^(\s+name:\s+)kubernetes-admin@kubernetes$'
+        #replace: '\1{{ cluster_name }}-admin@{{ cluster_name }}'
+        replace: '\1{{ cluster_name }}'
+      delegate_to: localhost
+
+    - name: Update context.user reference
+      ansible.builtin.replace:
+        path: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        regexp: '^(\s+user:\s+)kubernetes-admin$'
+        replace: '\1{{ cluster_name }}-admin'
+      delegate_to: localhost
+
+    - name: Update user name in users section
+      ansible.builtin.replace:
+        path: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        regexp: '^(\s+name:\s+)kubernetes-admin$'
+        replace: '\1{{ cluster_name }}-admin'
+      delegate_to: localhost
+
+    - name: Update current-context
+      ansible.builtin.replace:
+        path: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        regexp: '^(current-context:\s*)kubernetes-admin@kubernetes$'
+        #replace: '\1{{ cluster_name }}-admin@{{ cluster_name }}'
+        replace: '\1{{ cluster_name }}'
+      delegate_to: localhost
+
+    - name: Update user name in users section
+      ansible.builtin.lineinfile:
+        path: "/home/ubuntu/kubeconfigs/{{ cluster_name }}_config"
+        regexp: '^(\s*-?\s*name:\s*)kubernetes-admin\s*$'
+        line: "- name: {{ cluster_name }}-admin"
+        backrefs: yes
+      delegate_to: localhost
+
+    - name: Merge all kubeconfig files into ~/.kube/config
+      ansible.builtin.shell: |
+        export KUBECONFIG=$(find /home/ubuntu/kubeconfigs -type f -name '*_config' | tr '\n' ':' | sed 's/:$//')
+        mkdir -p ~/.kube
+        kubectl config view --merge --flatten > ~/.kube/config
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      run_once: true
