@@ -35,3 +35,4 @@ ansible-playbook -i inventory.ini playbooks/06-calicoctl-node-status.yml -vvv
 ansible-playbook -i inventory.ini playbooks/07-create-ippools.yml -vvv
 ansible-playbook -i inventory.ini playbooks/08-patch-felix-externalnodes.yml -vvv
 ansible-playbook -i inventory.ini playbooks/09-generate-dns-mappings.yml -vvv
+ansible-playbook -i inventory.ini playbooks/prueba_kubectl.yml -vvv
