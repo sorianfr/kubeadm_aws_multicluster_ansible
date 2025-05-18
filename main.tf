@@ -276,6 +276,9 @@ module "kubernetes_clusters" {
 
   # Pass the private key
   private_key              = tls_private_key.k8s_key_pair.private_key_pem
+  
+  # Pass worker_ebs_volumes
+  worker_ebs_volumes       = try(each.value.worker_ebs_volumes, [])
 
   depends_on = [
     aws_vpc.main_vpc,

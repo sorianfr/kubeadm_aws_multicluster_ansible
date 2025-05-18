@@ -160,3 +160,13 @@ variable "bgp_peers" {
     target_cluster = string
     }))
 }
+
+variable "worker_ebs_volumes" {
+  description = "Optional list of EBS volumes to attach to each worker node"
+  type = list(object({
+    device_name = string
+    volume_size = number
+    volume_type = string
+  }))
+  default = []
+}

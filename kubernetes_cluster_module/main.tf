@@ -228,6 +228,28 @@
 
     }
 
+    resource "aws_ebs_volume" "worker_ebs" {
+      count             = length(var.worker_ebs_volumes) * var.worker_count
+      availability_zone = var.availability_zone
+      size              = var.worker_ebs_volumes[floor(count.index / var.worker_count)].volume_size
+      type              = var.worker_ebs_volumes[floor(count.index / var.worker_count)].volume_type
+
+      tags = {
+        Name = "${var.cluster_name}_worker${count.index % var.worker_count + 1}_ebs"
+      }
+
+      lifecycle {
+        prevent_destroy = false
+      }
+    }
+
+    resource "aws_volume_attachment" "worker_ebs_attach" {
+      count        = length(var.worker_ebs_volumes) * var.worker_count
+      device_name  = var.worker_ebs_volumes[floor(count.index / var.worker_count)].device_name
+      volume_id    = aws_ebs_volume.worker_ebs[count.index].id
+      instance_id  = aws_instance.workers[count.index % var.worker_count].id
+      force_detach = true
+    }    
 
     data "template_file" "kubeadm_config" {
       template = file("${path.module}/kubeadm-config.tpl")
