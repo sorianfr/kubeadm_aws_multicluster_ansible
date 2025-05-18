@@ -316,3 +316,44 @@ http://localhost:8080
 
 ssh -i my_k8s_key.pem -L 8081:10.0.2.10:30287 ubuntu@ec2-54-144-247-55.compute-1.amazonaws.com
 
+
+#submariner
+
+curl -OL  https://github.com/submariner-io/releases/releases/download/v0.15.2/subctl-v0.15.2-linux-amd64.tar.xz
+tar xf subctl-v0.15.2-linux-amd64.tar.xz
+
+sudo mv subctl-v0.15.2/subctl-v0.15.2-linux-amd64 /usr/local/bin/subctl
+
+sudo chmod +x /usr/local/bin/subctl
+
+
+docker cp ~/.kube/config c1-control-plane:/root/.kube/config
+
+
+scp -i "my_k8s_key.pem" ~/.kube/config ubuntu@10.0.2.10:~/kubeconfig
+
+ssh -i "my_k8s_key.pem" ubuntu@10.0.2.10
+
+sudo su
+
+mkdir -p /root/.kube
+mv /home/ubuntu/kubeconfig /root/.kube/config
+chown root:root /root/.kube/config
+chmod 600 /root/.kube/config
+
+subctl deploy-broker --context cluster1
+
+
+subctl join broker-info.subm \
+  --context cluster1 \
+  --clusterid cluster1 \
+  --cable-driver none \
+  --servicecidr 10.96.0.0/16 \
+  --clustercidr 10.244.0.0/16
+
+subctl join broker-info.subm \
+  --context cluster2 \
+  --clusterid cluster2 \
+  --cable-driver none \
+  --servicecidr 10.100.0.0/16 \
+  --clustercidr 10.245.0.0/16
