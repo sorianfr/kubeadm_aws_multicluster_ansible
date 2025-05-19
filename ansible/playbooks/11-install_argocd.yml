@@ -1,0 +1,5 @@
+- name: Instalar Argo CD en cluster1
+  hosts: cluster1controlplane
+  become: yes
+  roles:
+    - argocd
