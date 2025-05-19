@@ -11,13 +11,7 @@ clusters = [
       { target_cluster = "cluster2" }
     ]
 
-    worker_ebs_volumes = [
-      {
-        device_name = "/dev/xvdf"
-        volume_size = 20
-        volume_type = "gp3"
-      }
-    ]
+    
   },
   {
     cluster_name               = "cluster2"
@@ -29,6 +23,13 @@ clusters = [
     asn                       = 65002
     bgp_peers = [
       { target_cluster = "cluster1" }
+    ]
+    worker_ebs_volumes = [
+      {
+        device_name = "/dev/xvdf"
+        volume_size = 20
+        volume_type = "gp3"
+      }
     ]
   }
 ]
