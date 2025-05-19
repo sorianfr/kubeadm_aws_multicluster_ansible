@@ -52,6 +52,11 @@ variable "clusters" {
     bgp_peers                 = list(object({
       target_cluster   = string
       }))
+    worker_ebs_volumes = optional(list(object({
+      volume_size = number
+      volume_type = string
+      device_name = string
+    })), []) # default to empty list if not provided
   }))
 }
 

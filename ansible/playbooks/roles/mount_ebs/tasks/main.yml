@@ -1,0 +1,41 @@
+---
+- name: Check if the device is already mounted
+  command: mountpoint -q /mnt/data
+  register: mount_check
+  ignore_errors: yes
+
+- name: Create mount point
+  file:
+    path: /mnt/data
+    state: directory
+    owner: ubuntu
+    group: ubuntu
+    mode: '0755'
+  when: mount_check.rc != 0
+
+- name: Check if nvme1n1 is already formatted
+  command: blkid /dev/nvme1n1
+  register: blkid_output
+  failed_when: false
+  changed_when: false
+
+- name: Format the volume as ext4 if not formatted
+  filesystem:
+    fstype: ext4
+    dev: /dev/nvme1n1
+  when: blkid_output.stdout == ""
+
+- name: Mount the volume
+  mount:
+    path: /mnt/data #If your MongoDB wants to store data in /data/db, just change the mount point from /mnt/data to /data/db in the role
+    src: /dev/nvme1n1
+    fstype: ext4
+    state: mounted
+
+- name: Ensure mount persists on reboot
+  mount:
+    path: /mnt/data #If your MongoDB wants to store data in /data/db, just change the mount point from /mnt/data to /data/db in the role  
+    src: /dev/nvme1n1
+    fstype: ext4
+    opts: defaults
+    state: present
