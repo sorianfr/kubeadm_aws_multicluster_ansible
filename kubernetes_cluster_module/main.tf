@@ -205,7 +205,7 @@
         volume_size           = 20
         volume_type           = "gp3"
         iops                  = 3000
-        throughput            = 1000       # Optional: MB/s (up to 1000 MB/s)
+        throughput            = 500       # Optional: MB/s (up to 1000 MB/s)
         delete_on_termination = true
       }
 
@@ -234,7 +234,7 @@
         volume_size           = 20
         volume_type           = "gp3"
         iops                  = 3000
-        throughput            = 1000       # Optional: MB/s (up to 1000 MB/s)
+        throughput            = 500       # Optional: MB/s (up to 1000 MB/s)
         delete_on_termination = true
       }
 

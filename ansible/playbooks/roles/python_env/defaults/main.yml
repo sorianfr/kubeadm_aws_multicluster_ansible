@@ -1,0 +1,6 @@
+python_venv_path: "/home/ubuntu/.venvs/ansible-k8s"
+python_venv_packages:
+  - kubernetes
+  - openshift
+  - ansible
+install_k8s_collection: true

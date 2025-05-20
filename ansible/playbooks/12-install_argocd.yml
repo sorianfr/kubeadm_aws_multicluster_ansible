@@ -2,6 +2,7 @@
   hosts: localhost
   connection: local
   vars:
+    ansible_python_interpreter: "/home/ubuntu/.venvs/ansible-k8s/bin/python"  # 👈 this line is key
     kubeconfig_path: "/home/ubuntu/.kube/config"
     kube_context: "cluster1"
   roles:

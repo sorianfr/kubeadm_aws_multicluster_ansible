@@ -1,0 +1,35 @@
+- name: Install required apt packages for Python venv
+  become: true
+  apt:
+    name:
+      - python3-venv
+      - python3-full
+    state: present
+    update_cache: true
+
+- name: Ensure venv directory exists
+  file:
+    path: "{{ python_venv_path | dirname }}"
+    state: directory
+    mode: '0755'
+
+- name: Create Python virtual environment
+  command: python3 -m venv "{{ python_venv_path }}"
+  args:
+    creates: "{{ python_venv_path }}/bin/activate"
+
+- name: Upgrade pip in virtual environment
+  pip:
+    name: pip
+    state: latest
+    executable: "{{ python_venv_path }}/bin/pip"
+
+- name: Install Python packages in venv
+  pip:
+    name: "{{ python_venv_packages }}"
+    executable: "{{ python_venv_path }}/bin/pip"
+
+- name: Install Ansible Kubernetes collection (if enabled)
+  ansible.builtin.command:
+    cmd: "{{ python_venv_path }}/bin/ansible-galaxy collection install kubernetes.core"
+  when: install_k8s_collection

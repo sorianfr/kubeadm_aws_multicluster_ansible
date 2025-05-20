@@ -1,0 +1,5 @@
+- name: Setup Python venv for Ansible
+  hosts: localhost
+  connection: local
+  roles:
+    - python_env
