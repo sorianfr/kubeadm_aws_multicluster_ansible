@@ -1,5 +1,7 @@
 - name: Create namespace for Argo CD
   kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    context: "{{ kube_context }}"
     api_version: v1
     kind: Namespace
     name: "{{ argocd_namespace }}"
@@ -7,13 +9,17 @@
 
 - name: Install Argo CD manifests
   kubernetes.core.k8s:
-    state: present
+    kubeconfig: "{{ kubeconfig_path }}"
+    context: "{{ kube_context }}"
     namespace: "{{ argocd_namespace }}"
     src: "https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml"
+    state: present
 
 - name: Patch Argo CD server service to NodePort
   when: expose_argocd_server and argocd_service_type == "NodePort"
   kubernetes.core.k8s:
+    kubeconfig: "{{ kubeconfig_path }}"
+    context: "{{ kube_context }}"
     kind: Service
     namespace: "{{ argocd_namespace }}"
     name: argocd-server
@@ -26,10 +32,12 @@
           - name: https
             port: 443
             targetPort: 8080
-            nodePort: 30080  
+            nodePort: 30080
 
 - name: Get Argo CD initial admin password (base64)
   kubernetes.core.k8s_info:
+    kubeconfig: "{{ kubeconfig_path }}"
+    context: "{{ kube_context }}"
     kind: Secret
     namespace: "{{ argocd_namespace }}"
     name: argocd-initial-admin-secret
@@ -43,22 +51,14 @@
   debug:
     msg: "Argo CD admin initial password is: {{ argocd_admin_password }}"
 
-
-- name: Ensure /usr/local/bin directory exists
-  file:
-    path: /usr/local/bin
-    state: directory
-    mode: '0755'
-
 - name: Download Argo CD CLI
+  become: true
   get_url:
     url: "https://github.com/argoproj/argo-cd/releases/download/{{ argocd_version }}/argocd-linux-amd64"
     dest: /usr/local/bin/argocd
     mode: '0755'
-  when: ansible_facts['os_family'] == "Debian" or ansible_facts['os_family'] == "RedHat"
 
-- name: Rename CLI binary if necessary
-  command: mv /usr/local/bin/argocd-linux-amd64 /usr/local/bin/argocd
-  args:
-    creates: /usr/local/bin/argocd
-  when: ansible_facts['os_family'] == "Debian" or ansible_facts['os_family'] == "RedHat"
+- name: Ensure Argo CD CLI is executable
+  file:
+    path: /usr/local/bin/argocd
+    mode: '0755'

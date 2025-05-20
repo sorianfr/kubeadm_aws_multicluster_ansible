@@ -201,6 +201,14 @@
 
       source_dest_check           = false  # Disable Source/Destination Check
 
+      root_block_device {
+        volume_size           = 20
+        volume_type           = "gp3"
+        iops                  = 3000
+        throughput            = 1000       # Optional: MB/s (up to 1000 MB/s)
+        delete_on_termination = true
+      }
+
       tags = {
         Name = "${var.cluster_name}_controlplane"
       }
@@ -221,6 +229,15 @@
       user_data                   = data.template_file.worker_user_data[count.index].rendered
 
       source_dest_check           = false  # Disable Source/Destination Check
+
+      root_block_device {
+        volume_size           = 20
+        volume_type           = "gp3"
+        iops                  = 3000
+        throughput            = 1000       # Optional: MB/s (up to 1000 MB/s)
+        delete_on_termination = true
+      }
+
 
       tags = {
         Name = "${var.cluster_name}_worker${count.index + 1}"

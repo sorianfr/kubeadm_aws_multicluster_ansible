@@ -1,5 +1,8 @@
-- name: Instalar Argo CD en cluster1
-  hosts: cluster1controlplane
-  become: yes
+- name: Install Argo CD in cluster1
+  hosts: localhost
+  connection: local
+  vars:
+    kubeconfig_path: "/home/ubuntu/.kube/config"
+    kube_context: "cluster1"
   roles:
     - argocd
