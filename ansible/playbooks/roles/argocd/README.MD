@@ -25,6 +25,9 @@ after running the playbook/rol
 
 To Connect:
 
+ssh -i "my_k8s_key.pem" -L 8085:10.0.2.11:30080 ubunt
+u@ec2-3-235-1-196.compute-1.amazonaws.com
+
 In Bastion:
 
 kubectl --context=cluster1 -n argocd port-forward svc/argocd-server 8085:443
@@ -41,3 +44,7 @@ To Get the Password:
 kubectl --context=cluster1 -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d; echo
 
 
+Seeing an App in Localmachine (App has to be NodePort to do it this way)
+
+ssh -i "my_k8s_key.pem" -L 8085:10.0.2.11:30080 ubuntu@ec2-3-235-1-196.compute-1.amazonaws.com
+                           local_port:node_id:nodeport ubuntu@bastion_dns           

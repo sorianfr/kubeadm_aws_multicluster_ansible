@@ -1,6 +1,6 @@
 ---
 - name: Format and mount EBS volume on workers
-  hosts: cluster1worker1
+  hosts: cluster2worker1
   become: yes
   roles:
     - mount_ebs
